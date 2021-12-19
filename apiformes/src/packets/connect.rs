@@ -39,7 +39,14 @@ impl Parsable for ConnectFlags {
             ConnectFlags::from_bits(raw_flags.inner()).ok_or(DataParseError::BadConnectMessage)?;
         // sanity check on qos
         let _: QoS = flags.try_into()?;
-        Ok(flags)
+        if flags.intersects(
+            ConnectFlags::WILL_QOS1 | ConnectFlags::WILL_QOS2 | ConnectFlags::WILL_RETAIN,
+        ) && !flags.contains(ConnectFlags::WILL)
+        {
+            Err(DataParseError::BadConnectMessage)
+        } else {
+            Ok(flags)
+        }
     }
     fn size(&self) -> usize {
         1
@@ -171,8 +178,13 @@ impl Connect {
             password: None,
         })
     }
-    pub fn set_will_retain(&mut self) {
-        self.flags |= ConnectFlags::WILL_RETAIN;
+    pub fn set_will_retain(&mut self) -> Result<(), DataParseError> {
+        if self.flags.contains(ConnectFlags::WILL) {
+            self.flags |= ConnectFlags::WILL_RETAIN;
+            Ok(())
+        } else {
+            Err(DataParseError::BadConnectMessage)
+        }
     }
     pub fn set_clean_start(&mut self) {
         self.flags |= ConnectFlags::CLEAN_START;
@@ -212,9 +224,14 @@ impl Connect {
         self.flags |= ConnectFlags::WILL;
         self.will_info = Some(will_info);
     }
-    pub fn set_will_qos(&mut self, qos: QoS) {
-        self.flags -= ConnectFlags::WILL_QOS1 | ConnectFlags::WILL_QOS2;
-        self.flags |= qos.into();
+    pub fn set_will_qos(&mut self, qos: QoS) -> Result<(), DataParseError> {
+        if self.flags.contains(ConnectFlags::WILL) {
+            self.flags -= ConnectFlags::WILL_QOS1 | ConnectFlags::WILL_QOS2;
+            self.flags |= qos.into();
+            Ok(())
+        } else {
+            Err(DataParseError::BadConnectMessage)
+        }
     }
     pub fn add_prop(&mut self, key: Property, value: MqttPropValue) -> Result<(), DataParseError> {
         self.props.checked_insert(key, value, PropOwner::CONNECT)
