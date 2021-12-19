@@ -199,7 +199,7 @@ impl Parsable for MqttUtf8String {
         Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let len = buf.get_u16() as usize;
+        let len = MqttTwoBytesInt::deserialize(buf)?.inner() as usize;
         if buf.remaining() < len {
             return Err(DataParseError::InsufficientBuffer {
                 needed: len,
@@ -346,7 +346,7 @@ impl Parsable for MqttBinaryData {
         Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let len = buf.get_u16() as usize;
+        let len = MqttTwoBytesInt::deserialize(buf)?.inner() as usize;
         if buf.remaining() < len {
             return Err(DataParseError::InsufficientBuffer {
                 needed: len,
@@ -713,5 +713,85 @@ mod test {
         assert_eq!(d1.name.inner(), d2.name.inner());
         assert_eq!(d1.value.inner(), d2.value.inner());
         assert_eq!(b.remaining(), 0);
+    }
+
+    #[test]
+    fn test_incomplete_string() {
+        let mut b = Bytes::from(&[][..]);
+        let d = MqttUtf8String::deserialize(&mut b);
+        assert_eq!(
+            d.err().unwrap(),
+            DataParseError::InsufficientBuffer {
+                needed: 2,
+                available: 0
+            }
+        );
+        let mut b = Bytes::from(&[0x00][..]);
+        let d = MqttUtf8String::deserialize(&mut b);
+        assert_eq!(
+            d.err().unwrap(),
+            DataParseError::InsufficientBuffer {
+                needed: 2,
+                available: 1
+            }
+        );
+        let mut b = Bytes::from(&[0x00, 0x05][..]);
+        let d = MqttUtf8String::deserialize(&mut b);
+        assert_eq!(
+            d.err().unwrap(),
+            DataParseError::InsufficientBuffer {
+                needed: 5,
+                available: 0
+            }
+        );
+        let mut b = Bytes::from(&[0x00, 0x05, 0x04][..]);
+        let d = MqttUtf8String::deserialize(&mut b);
+        assert_eq!(
+            d.err().unwrap(),
+            DataParseError::InsufficientBuffer {
+                needed: 5,
+                available: 1
+            }
+        );
+    }
+
+    #[test]
+    fn test_incomplete_data() {
+        let mut b = Bytes::from(&[][..]);
+        let d = MqttBinaryData::deserialize(&mut b);
+        assert_eq!(
+            d.err().unwrap(),
+            DataParseError::InsufficientBuffer {
+                needed: 2,
+                available: 0
+            }
+        );
+        let mut b = Bytes::from(&[0x00][..]);
+        let d = MqttBinaryData::deserialize(&mut b);
+        assert_eq!(
+            d.err().unwrap(),
+            DataParseError::InsufficientBuffer {
+                needed: 2,
+                available: 1
+            }
+        );
+        let mut b = Bytes::from(&[0x00, 0x05][..]);
+        let d = MqttBinaryData::deserialize(&mut b);
+        assert_eq!(
+            d.err().unwrap(),
+            DataParseError::InsufficientBuffer {
+                needed: 5,
+                available: 0
+            }
+        );
+        let mut b = Bytes::from(&[0x00, 0x05, 0x04][..]);
+        let d = MqttBinaryData::deserialize(&mut b);
+        assert_eq!(
+            d.err().unwrap(),
+            DataParseError::InsufficientBuffer {
+                needed: 5,
+                available: 1
+            }
+        );
     }
 }
