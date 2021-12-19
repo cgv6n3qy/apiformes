@@ -5,6 +5,7 @@ pub mod props;
 pub mod puback;
 pub mod publish;
 pub mod pubrec;
+pub mod pubrel;
 pub mod qos;
 pub mod reason;
 pub mod topic;
