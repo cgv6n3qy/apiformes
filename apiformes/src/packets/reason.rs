@@ -137,7 +137,7 @@ impl Parsable for PubRelReasonCode {
 }
 
 //2.4 Reason Code
-pub type PubCompReasonCode = PubRecReasonCode;
+pub type PubCompReasonCode = PubRelReasonCode;
 
 //2.4 Reason Code
 #[repr(u8)]
