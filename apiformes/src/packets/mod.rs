@@ -12,4 +12,5 @@ pub mod reason;
 pub mod suback;
 pub mod subscribe;
 pub mod topic;
+pub mod unsuback;
 pub mod unsubscribe;
