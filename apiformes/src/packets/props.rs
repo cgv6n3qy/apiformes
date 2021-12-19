@@ -1,6 +1,6 @@
 use crate::data::{
-    MqttBinaryData, MqttFourBytesInt, MqttTwoBytesInt, MqttUtf8String, MqttUtf8StringPair,
-    MqttVariableBytesInt,
+    MqttBinaryData, MqttFourBytesInt, MqttOneBytesInt, MqttTwoBytesInt, MqttUtf8String,
+    MqttUtf8StringPair, MqttVariableBytesInt,
 };
 use crate::parsable::{DataParseError, Parsable};
 use bitflags::bitflags;
@@ -298,7 +298,7 @@ impl Parsable for Property {
 }
 
 pub enum MqttPropValue {
-    Byte(u8),
+    Byte(MqttOneBytesInt),
     FourBytesInt(MqttFourBytesInt),
     String(MqttUtf8String),
     StringPair(MqttUtf8StringPair),
@@ -321,10 +321,7 @@ impl MqttPropValue {
     }
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         match self {
-            MqttPropValue::Byte(v) => {
-                buf.put_u8(*v);
-                Ok(())
-            }
+            MqttPropValue::Byte(v) => v.serialize(buf),
             MqttPropValue::FourBytesInt(v) => v.serialize(buf),
             MqttPropValue::String(v) => v.serialize(buf),
             MqttPropValue::StringPair(v) => v.serialize(buf),
@@ -335,16 +332,7 @@ impl MqttPropValue {
     }
     fn deserialize<T: Buf>(buf: &mut T, ty: MqttPropValueType) -> Result<Self, DataParseError> {
         let res = match ty {
-            MqttPropValueType::Byte => {
-                let size = buf.remaining();
-                if size < 1 {
-                    return Err(DataParseError::InsufficientBuffer {
-                        needed: 1,
-                        available: size,
-                    });
-                }
-                MqttPropValue::Byte(buf.get_u8())
-            }
+            MqttPropValueType::Byte => MqttPropValue::Byte(MqttOneBytesInt::deserialize(buf)?),
             MqttPropValueType::FourBytesInt => {
                 MqttPropValue::FourBytesInt(MqttFourBytesInt::deserialize(buf)?)
             }

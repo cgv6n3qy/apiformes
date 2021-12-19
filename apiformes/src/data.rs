@@ -5,6 +5,37 @@ use bytes::{Buf, BufMut, Bytes};
 #[cfg(feature = "debug")]
 use std::fmt;
 
+pub struct MqttOneBytesInt(u8);
+impl UncheckedParsable for MqttOneBytesInt {
+    fn unchecked_serialize<T: BufMut>(&self, buf: &mut T) {
+        buf.put_u8(self.0)
+    }
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Self {
+        MqttOneBytesInt(buf.get_u8())
+    }
+}
+
+impl Parsable for MqttOneBytesInt {
+    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+        self.unchecked_serialize(buf);
+        Ok(())
+    }
+    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+        let size = buf.remaining();
+        if size < 1 {
+            Err(DataParseError::InsufficientBuffer {
+                needed: 1,
+                available: size,
+            })
+        } else {
+            Ok(Self::unchecked_deserialize(buf))
+        }
+    }
+    fn size(&self) -> usize {
+        1
+    }
+}
+
 /// 1.5.2 Two Byte Integer
 pub struct MqttTwoBytesInt(u16);
 
