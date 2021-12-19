@@ -140,7 +140,7 @@ impl Parsable for Properties {
 }
 
 #[derive(PartialEq)]
-pub enum MqttPropValueType {
+pub(crate) enum MqttPropValueType {
     Byte,
     FourBytesInt,
     String,
@@ -362,7 +362,7 @@ impl Parsable for Property {
     }
 }
 
-pub enum MqttPropValue {
+enum MqttPropValueInner {
     Byte(MqttOneBytesInt),
     FourBytesInt(MqttFourBytesInt),
     String(MqttUtf8String),
@@ -372,30 +372,31 @@ pub enum MqttPropValue {
     TwoBytesInt(MqttTwoBytesInt),
 }
 
+pub struct MqttPropValue(MqttPropValueInner);
 impl MqttPropValue {
     pub fn into_u8(&self) -> Option<u8> {
-        if let MqttPropValue::Byte(i) = self {
+        if let MqttPropValueInner::Byte(i) = &self.0 {
             Some(i.inner())
         } else {
             None
         }
     }
     pub fn into_str(&self) -> Option<&str> {
-        if let MqttPropValue::String(s) = self {
+        if let MqttPropValueInner::String(s) = &self.0 {
             Some(s.inner())
         } else {
             None
         }
     }
     pub fn into_str_pair(&self) -> Option<(&str, &str)> {
-        if let MqttPropValue::StringPair(d) = self {
+        if let MqttPropValueInner::StringPair(d) = &self.0 {
             Some(d.inner())
         } else {
             None
         }
     }
     pub fn into_data(&self) -> Option<&Bytes> {
-        if let MqttPropValue::Data(d) = self {
+        if let MqttPropValueInner::Data(d) = &self.0 {
             Some(d.inner())
         } else {
             None
@@ -403,94 +404,101 @@ impl MqttPropValue {
     }
 
     pub fn into_u16(&self) -> Option<u16> {
-        if let MqttPropValue::TwoBytesInt(i) = self {
+        if let MqttPropValueInner::TwoBytesInt(i) = &self.0 {
             Some(i.inner())
         } else {
             None
         }
     }
     pub fn into_u32(&self) -> Option<u32> {
-        match self {
-            MqttPropValue::VarInt(i) => Some(i.inner()),
-            MqttPropValue::FourBytesInt(i) => Some(i.inner()),
+        match &self.0 {
+            MqttPropValueInner::VarInt(i) => Some(i.inner()),
+            MqttPropValueInner::FourBytesInt(i) => Some(i.inner()),
             _ => None,
         }
     }
     pub fn new_u8(u: u8) -> MqttPropValue {
-        MqttPropValue::Byte(MqttOneBytesInt::new(u))
+        MqttPropValue(MqttPropValueInner::Byte(MqttOneBytesInt::new(u)))
     }
     pub fn new_u32(u: u32) -> MqttPropValue {
-        MqttPropValue::FourBytesInt(MqttFourBytesInt::new(u))
+        MqttPropValue(MqttPropValueInner::FourBytesInt(MqttFourBytesInt::new(u)))
     }
     pub fn new_string(buf: &str) -> Result<MqttPropValue, DataParseError> {
-        Ok(MqttPropValue::String(MqttUtf8String::new(buf.to_string())?))
+        Ok(MqttPropValue(MqttPropValueInner::String(
+            MqttUtf8String::new(buf.to_string())?,
+        )))
     }
     pub fn new_string_pair(k: &str, v: &str) -> Result<MqttPropValue, DataParseError> {
-        Ok(MqttPropValue::StringPair(MqttUtf8StringPair::new(
-            k.to_string(),
-            v.to_string(),
-        )?))
+        Ok(MqttPropValue(MqttPropValueInner::StringPair(
+            MqttUtf8StringPair::new(k.to_string(), v.to_string())?,
+        )))
     }
     pub fn new_data<T: Buf>(buf: T) -> Result<MqttPropValue, DataParseError> {
-        Ok(MqttPropValue::Data(MqttBinaryData::new(buf)?))
+        Ok(MqttPropValue(MqttPropValueInner::Data(
+            MqttBinaryData::new(buf)?,
+        )))
     }
     pub fn new_varint(u: u32) -> Result<MqttPropValue, DataParseError> {
-        Ok(MqttPropValue::VarInt(MqttVariableBytesInt::new(u)?))
+        Ok(MqttPropValue(MqttPropValueInner::VarInt(
+            MqttVariableBytesInt::new(u)?,
+        )))
     }
     pub fn new_u16(u: u16) -> MqttPropValue {
-        MqttPropValue::TwoBytesInt(MqttTwoBytesInt::new(u))
+        MqttPropValue(MqttPropValueInner::TwoBytesInt(MqttTwoBytesInt::new(u)))
     }
     fn prop_type(&self) -> MqttPropValueType {
-        match self {
-            MqttPropValue::Byte(_) => MqttPropValueType::Byte,
-            MqttPropValue::FourBytesInt(_) => MqttPropValueType::FourBytesInt,
-            MqttPropValue::String(_) => MqttPropValueType::String,
-            MqttPropValue::StringPair(_) => MqttPropValueType::StringPair,
-            MqttPropValue::Data(_) => MqttPropValueType::Data,
-            MqttPropValue::VarInt(_) => MqttPropValueType::VarInt,
-            MqttPropValue::TwoBytesInt(_) => MqttPropValueType::TwoBytesInt,
+        match &self.0 {
+            MqttPropValueInner::Byte(_) => MqttPropValueType::Byte,
+            MqttPropValueInner::FourBytesInt(_) => MqttPropValueType::FourBytesInt,
+            MqttPropValueInner::String(_) => MqttPropValueType::String,
+            MqttPropValueInner::StringPair(_) => MqttPropValueType::StringPair,
+            MqttPropValueInner::Data(_) => MqttPropValueType::Data,
+            MqttPropValueInner::VarInt(_) => MqttPropValueType::VarInt,
+            MqttPropValueInner::TwoBytesInt(_) => MqttPropValueType::TwoBytesInt,
         }
     }
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        match self {
-            MqttPropValue::Byte(v) => v.serialize(buf),
-            MqttPropValue::FourBytesInt(v) => v.serialize(buf),
-            MqttPropValue::String(v) => v.serialize(buf),
-            MqttPropValue::StringPair(v) => v.serialize(buf),
-            MqttPropValue::Data(v) => v.serialize(buf),
-            MqttPropValue::VarInt(v) => v.serialize(buf),
-            MqttPropValue::TwoBytesInt(v) => v.serialize(buf),
+        match &self.0 {
+            MqttPropValueInner::Byte(v) => v.serialize(buf),
+            MqttPropValueInner::FourBytesInt(v) => v.serialize(buf),
+            MqttPropValueInner::String(v) => v.serialize(buf),
+            MqttPropValueInner::StringPair(v) => v.serialize(buf),
+            MqttPropValueInner::Data(v) => v.serialize(buf),
+            MqttPropValueInner::VarInt(v) => v.serialize(buf),
+            MqttPropValueInner::TwoBytesInt(v) => v.serialize(buf),
         }
     }
     fn deserialize<T: Buf>(buf: &mut T, ty: MqttPropValueType) -> Result<Self, DataParseError> {
         let res = match ty {
-            MqttPropValueType::Byte => MqttPropValue::Byte(MqttOneBytesInt::deserialize(buf)?),
+            MqttPropValueType::Byte => MqttPropValueInner::Byte(MqttOneBytesInt::deserialize(buf)?),
             MqttPropValueType::FourBytesInt => {
-                MqttPropValue::FourBytesInt(MqttFourBytesInt::deserialize(buf)?)
+                MqttPropValueInner::FourBytesInt(MqttFourBytesInt::deserialize(buf)?)
             }
-            MqttPropValueType::String => MqttPropValue::String(MqttUtf8String::deserialize(buf)?),
+            MqttPropValueType::String => {
+                MqttPropValueInner::String(MqttUtf8String::deserialize(buf)?)
+            }
             MqttPropValueType::StringPair => {
-                MqttPropValue::StringPair(MqttUtf8StringPair::deserialize(buf)?)
+                MqttPropValueInner::StringPair(MqttUtf8StringPair::deserialize(buf)?)
             }
-            MqttPropValueType::Data => MqttPropValue::Data(MqttBinaryData::deserialize(buf)?),
+            MqttPropValueType::Data => MqttPropValueInner::Data(MqttBinaryData::deserialize(buf)?),
             MqttPropValueType::VarInt => {
-                MqttPropValue::VarInt(MqttVariableBytesInt::deserialize(buf)?)
+                MqttPropValueInner::VarInt(MqttVariableBytesInt::deserialize(buf)?)
             }
             MqttPropValueType::TwoBytesInt => {
-                MqttPropValue::TwoBytesInt(MqttTwoBytesInt::deserialize(buf)?)
+                MqttPropValueInner::TwoBytesInt(MqttTwoBytesInt::deserialize(buf)?)
             }
         };
-        Ok(res)
+        Ok(MqttPropValue(res))
     }
     fn size(&self) -> usize {
-        match self {
-            MqttPropValue::Byte(_) => 1,
-            MqttPropValue::FourBytesInt(v) => v.size(),
-            MqttPropValue::String(v) => v.size(),
-            MqttPropValue::StringPair(v) => v.size(),
-            MqttPropValue::Data(v) => v.size(),
-            MqttPropValue::VarInt(v) => v.size(),
-            MqttPropValue::TwoBytesInt(v) => v.size(),
+        match &self.0 {
+            MqttPropValueInner::Byte(_) => 1,
+            MqttPropValueInner::FourBytesInt(v) => v.size(),
+            MqttPropValueInner::String(v) => v.size(),
+            MqttPropValueInner::StringPair(v) => v.size(),
+            MqttPropValueInner::Data(v) => v.size(),
+            MqttPropValueInner::VarInt(v) => v.size(),
+            MqttPropValueInner::TwoBytesInt(v) => v.size(),
         }
     }
 }
@@ -507,7 +515,7 @@ mod test {
         let res = props
             .checked_insert(
                 Property::ReasonString,
-                MqttPropValue::Byte(MqttOneBytesInt::new(5)),
+                MqttPropValue::new_u8(5),
                 PropOwner::CONNACK,
             )
             .err()
@@ -516,7 +524,7 @@ mod test {
         let res = props
             .checked_insert(
                 Property::ReasonString,
-                MqttPropValue::String(MqttUtf8String::new("Hello".to_owned()).unwrap()),
+                MqttPropValue::new_string("Hello").unwrap(),
                 PropOwner::CONNECT,
             )
             .err()
@@ -533,7 +541,7 @@ mod test {
         props
             .checked_insert(
                 Property::ReasonString,
-                MqttPropValue::String(MqttUtf8String::new("Hello".to_owned()).unwrap()),
+                MqttPropValue::new_string("Hello").unwrap(),
                 PropOwner::CONNACK,
             )
             .unwrap();
@@ -557,7 +565,7 @@ mod test {
         props
             .checked_insert(
                 Property::ReasonString,
-                MqttPropValue::String(MqttUtf8String::new("Hello".to_owned()).unwrap()),
+                MqttPropValue::new_string("Hello").unwrap(),
                 PropOwner::CONNACK,
             )
             .unwrap();
@@ -572,7 +580,7 @@ mod test {
         props
             .checked_insert(
                 Property::ReasonString,
-                MqttPropValue::String(MqttUtf8String::new("World".to_owned()).unwrap()),
+                MqttPropValue::new_string("World").unwrap(),
                 PropOwner::CONNACK,
             )
             .unwrap();
@@ -620,14 +628,14 @@ mod test {
         props
             .checked_insert(
                 Property::UserProperty,
-                MqttPropValue::String(MqttUtf8String::new("Hello".to_owned()).unwrap()),
+                MqttPropValue::new_string("Hello").unwrap(),
                 PropOwner::CONNACK,
             )
             .unwrap();
         props
             .checked_insert(
                 Property::UserProperty,
-                MqttPropValue::String(MqttUtf8String::new("World".to_owned()).unwrap()),
+                MqttPropValue::new_string("World").unwrap(),
                 PropOwner::CONNACK,
             )
             .unwrap();

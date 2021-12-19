@@ -21,12 +21,12 @@ pub enum DataParseError {
     BadPing,
 }
 
-pub trait UncheckedParsable {
+pub(super) trait UncheckedParsable {
     fn unchecked_serialize<T: BufMut>(&self, buf: &mut T);
     fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Self;
 }
 
-pub trait Parsable {
+pub(super) trait Parsable {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError>;
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError>
     where

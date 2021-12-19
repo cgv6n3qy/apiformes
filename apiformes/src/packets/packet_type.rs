@@ -4,7 +4,7 @@ use super::{helpers::bits_u8, parsable::DataParseError};
 #[repr(u8)]
 #[derive(PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub enum PacketType {
+pub(crate) enum PacketType {
     Reserved = 0b0000,
     Connect = 0b0001,
     ConnAck = 0b0010,
@@ -47,7 +47,7 @@ impl PacketType {
             _ => self.all_flags_zero(data),
         }
     }
-    pub fn parse(data: u8) -> Result<Self, DataParseError> {
+    pub(super) fn parse(data: u8) -> Result<Self, DataParseError> {
         let packet_type = match bits_u8(data, 4, 4) {
             0 => PacketType::Reserved,
             1 => PacketType::Connect,
@@ -70,7 +70,7 @@ impl PacketType {
         packet_type.check_flags(data)?;
         Ok(packet_type)
     }
-    pub fn fixed_flags(&self) -> u8 {
+    pub(super) fn fixed_flags(&self) -> u8 {
         match self {
             PacketType::PubRel => 0b0010,
             PacketType::Subscribe => 0b0010,

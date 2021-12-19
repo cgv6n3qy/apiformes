@@ -121,7 +121,6 @@ impl Parsable for ConnAck {
 
 #[cfg(test)]
 mod test {
-    use super::super::data::MqttUtf8String;
     use super::*;
     use bytes::BytesMut;
     #[test]
@@ -132,7 +131,7 @@ mod test {
         connack
             .add_prop(
                 Property::ReasonString,
-                MqttPropValue::String(MqttUtf8String::new("Déjà vu".to_owned()).unwrap()),
+                MqttPropValue::new_string("Déjà vu").unwrap(),
             )
             .unwrap();
         let mut b = BytesMut::new();

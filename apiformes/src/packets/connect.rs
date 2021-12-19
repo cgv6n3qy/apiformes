@@ -336,7 +336,6 @@ impl Parsable for Connect {
 
 #[cfg(test)]
 mod test {
-    use super::super::data::MqttFourBytesInt;
     use super::*;
     use bytes::BytesMut;
     #[test]
@@ -348,10 +347,7 @@ mod test {
         connect.set_username("apiformes").unwrap();
         connect.set_keep_alive(5);
         connect
-            .add_prop(
-                Property::SessionExpiryInterval,
-                MqttPropValue::FourBytesInt(MqttFourBytesInt::new(10)),
-            )
+            .add_prop(Property::SessionExpiryInterval, MqttPropValue::new_u32(10))
             .unwrap();
         let mut b = BytesMut::new();
         connect.serialize(&mut b).unwrap();

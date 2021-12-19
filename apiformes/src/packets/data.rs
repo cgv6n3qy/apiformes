@@ -5,12 +5,12 @@ use bytes::{Buf, BufMut, Bytes};
 #[cfg(feature = "debug")]
 use std::fmt;
 
-pub struct MqttOneBytesInt(u8);
+pub(super) struct MqttOneBytesInt(u8);
 impl MqttOneBytesInt {
-    pub fn new(i: u8) -> Self {
+    pub(super) fn new(i: u8) -> Self {
         MqttOneBytesInt(i)
     }
-    pub fn inner(&self) -> u8 {
+    pub(super) fn inner(&self) -> u8 {
         self.0
     }
 }
@@ -45,13 +45,13 @@ impl Parsable for MqttOneBytesInt {
 }
 
 /// 1.5.2 Two Byte Integer
-pub struct MqttTwoBytesInt(u16);
+pub(super) struct MqttTwoBytesInt(u16);
 
 impl MqttTwoBytesInt {
-    pub fn new(i: u16) -> Self {
+    pub(super) fn new(i: u16) -> Self {
         MqttTwoBytesInt(i)
     }
-    pub fn inner(&self) -> u16 {
+    pub(super) fn inner(&self) -> u16 {
         self.0
     }
 }
@@ -94,13 +94,13 @@ impl fmt::Debug for MqttTwoBytesInt {
 }
 
 /// 1.5.3 Four Byte Integer
-pub struct MqttFourBytesInt(u32);
+pub(super) struct MqttFourBytesInt(u32);
 
 impl MqttFourBytesInt {
-    pub fn new(i: u32) -> Self {
+    pub(super) fn new(i: u32) -> Self {
         MqttFourBytesInt(i)
     }
-    pub fn inner(&self) -> u32 {
+    pub(super) fn inner(&self) -> u32 {
         self.0
     }
 }
@@ -143,25 +143,25 @@ impl fmt::Debug for MqttFourBytesInt {
 }
 
 /// 1.5.4 UTF-8 Encoded String
-pub struct MqttUtf8String {
+pub(super) struct MqttUtf8String {
     s: String,
 }
 
 impl MqttUtf8String {
-    pub fn new(s: String) -> Result<Self, DataParseError> {
+    pub(super) fn new(s: String) -> Result<Self, DataParseError> {
         MqttUtf8String::verify(&s)?;
         Ok(MqttUtf8String { s })
     }
 
-    pub fn unwrap(self) -> String {
+    pub(super) fn unwrap(self) -> String {
         self.s
     }
 
-    pub fn inner(&self) -> &str {
+    pub(super) fn inner(&self) -> &str {
         &self.s
     }
 
-    pub fn inner_mut(&mut self) -> &mut String {
+    pub(super) fn inner_mut(&mut self) -> &mut String {
         &mut self.s
     }
 
@@ -225,17 +225,17 @@ impl fmt::Debug for MqttUtf8String {
 }
 
 /// 1.5.5 Variable Byte Integer
-pub struct MqttVariableBytesInt {
+pub(super) struct MqttVariableBytesInt {
     i: u32,
 }
 
 impl MqttVariableBytesInt {
-    pub fn new(i: u32) -> Result<Self, DataParseError> {
+    pub(super) fn new(i: u32) -> Result<Self, DataParseError> {
         MqttVariableBytesInt::verify(i)?;
         Ok(MqttVariableBytesInt { i })
     }
 
-    pub fn inner(&self) -> u32 {
+    pub(super) fn inner(&self) -> u32 {
         self.i
     }
 
@@ -308,29 +308,19 @@ impl fmt::Debug for MqttVariableBytesInt {
 }
 
 /// 1.5.6 Binary Data
-pub struct MqttBinaryData {
+pub(super) struct MqttBinaryData {
     d: Bytes,
 }
 
 impl MqttBinaryData {
-    pub fn new<T: Buf>(mut buf: T) -> Result<Self, DataParseError> {
+    pub(super) fn new<T: Buf>(mut buf: T) -> Result<Self, DataParseError> {
         let d = buf.copy_to_bytes(buf.remaining());
         MqttBinaryData::verify(&d)?;
         Ok(MqttBinaryData { d })
     }
-
-    pub fn unwrap(self) -> Bytes {
-        self.d
-    }
-
-    pub fn inner(&self) -> &Bytes {
+    pub(super) fn inner(&self) -> &Bytes {
         &self.d
     }
-
-    pub fn inner_mut(&mut self) -> &mut Bytes {
-        &mut self.d
-    }
-
     fn verify(s: &Bytes) -> Result<(), DataParseError> {
         if s.remaining() > 65535 {
             return Err(DataParseError::BadMqttBinaryData);
@@ -378,29 +368,20 @@ impl fmt::Debug for MqttBinaryData {
     }
 }
 
-pub struct MqttUtf8StringPair {
-    pub name: MqttUtf8String,
-    pub value: MqttUtf8String,
+pub(super) struct MqttUtf8StringPair {
+    pub(super) name: MqttUtf8String,
+    pub(super) value: MqttUtf8String,
 }
 
 impl MqttUtf8StringPair {
-    pub fn new(k: String, v: String) -> Result<Self, DataParseError> {
+    pub(super) fn new(k: String, v: String) -> Result<Self, DataParseError> {
         Ok(MqttUtf8StringPair {
             name: MqttUtf8String::new(k)?,
             value: MqttUtf8String::new(v)?,
         })
     }
-
-    pub fn unwrap(self) -> (String, String) {
-        (self.name.unwrap(), self.value.unwrap())
-    }
-
-    pub fn inner(&self) -> (&str, &str) {
+    pub(super) fn inner(&self) -> (&str, &str) {
         (self.name.inner(), self.value.inner())
-    }
-
-    pub fn inner_mut(&mut self) -> (&mut String, &mut String) {
-        (self.name.inner_mut(), self.value.inner_mut())
     }
 }
 
