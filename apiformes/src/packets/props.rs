@@ -153,6 +153,7 @@ pub(crate) enum MqttPropValueType {
 ///2.2.2.2 Property
 #[repr(u32)]
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Property {
     PayloadFormatIndicator = 0x1,
     MessageExpiryInterval = 0x2,
