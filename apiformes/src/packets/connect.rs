@@ -333,7 +333,7 @@ impl Parsable for Connect {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::data::MqttFourBytesInt;
+    use super::super::data::MqttFourBytesInt;
     use bytes::BytesMut;
     #[test]
     fn test_connect_serde() {
