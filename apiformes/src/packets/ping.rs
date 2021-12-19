@@ -1,5 +1,7 @@
-use crate::data::MqttVariableBytesInt;
-use crate::parsable::{DataParseError, Parsable};
+use super::{
+    data::MqttVariableBytesInt,
+    parsable::{DataParseError, Parsable},
+};
 use bytes::{Buf, BufMut};
 
 pub struct PingReq {}

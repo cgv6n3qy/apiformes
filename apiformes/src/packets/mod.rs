@@ -1,8 +1,10 @@
 pub mod auth;
 pub mod connack;
 pub mod connect;
+pub mod data;
 pub mod disconnect;
 pub mod packet_type;
+pub mod parsable;
 pub mod ping;
 pub mod props;
 pub mod puback;

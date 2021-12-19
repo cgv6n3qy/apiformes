@@ -1,9 +1,9 @@
 use super::{
+    data::MqttVariableBytesInt,
+    parsable::{DataParseError, Parsable},
     props::{MqttPropValue, PropOwner, Properties, Property},
     reason::AuthReasonCode,
 };
-use crate::data::MqttVariableBytesInt;
-use crate::parsable::{DataParseError, Parsable};
 use bytes::{Buf, BufMut};
 
 pub struct Auth {

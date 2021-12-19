@@ -1,11 +1,11 @@
 use super::{
+    data::{
+        MqttBinaryData, MqttOneBytesInt, MqttTwoBytesInt, MqttUtf8String, MqttVariableBytesInt,
+    },
+    parsable::{DataParseError, Parsable},
     props::{MqttPropValue, PropOwner, Properties, Property},
     qos::QoS,
 };
-use crate::data::{
-    MqttBinaryData, MqttOneBytesInt, MqttTwoBytesInt, MqttUtf8String, MqttVariableBytesInt,
-};
-use crate::parsable::{DataParseError, Parsable};
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes};
 use std::convert::TryInto;

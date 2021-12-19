@@ -1,5 +1,7 @@
-use crate::data::MqttOneBytesInt;
-use crate::parsable::{DataParseError, Parsable};
+use super::{
+    data::MqttOneBytesInt,
+    parsable::{DataParseError, Parsable},
+};
 use bytes::{Buf, BufMut};
 
 //2.4 Reason Code

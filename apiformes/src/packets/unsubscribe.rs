@@ -1,9 +1,9 @@
 use super::{
+    data::{MqttTwoBytesInt, MqttVariableBytesInt},
+    parsable::{DataParseError, Parsable},
     props::{MqttPropValue, PropOwner, Properties, Property},
     topic::MqttTopic,
 };
-use crate::data::{MqttTwoBytesInt, MqttVariableBytesInt};
-use crate::parsable::{DataParseError, Parsable};
 use bytes::{Buf, BufMut};
 
 pub struct UnSubscribe {

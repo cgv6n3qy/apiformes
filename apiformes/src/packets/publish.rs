@@ -1,10 +1,10 @@
 use super::{
+    data::{MqttOneBytesInt, MqttTwoBytesInt, MqttVariableBytesInt},
+    parsable::{DataParseError, Parsable},
     props::{MqttPropValue, PropOwner, Properties, Property},
     qos::QoS,
     topic::MqttTopic,
 };
-use crate::data::{MqttOneBytesInt, MqttTwoBytesInt, MqttVariableBytesInt};
-use crate::parsable::{DataParseError, Parsable};
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes};
 use std::convert::TryInto;

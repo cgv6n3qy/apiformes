@@ -1,9 +1,9 @@
 use super::{
+    data::{MqttOneBytesInt, MqttVariableBytesInt},
+    parsable::{DataParseError, Parsable},
     props::{MqttPropValue, PropOwner, Properties, Property},
     reason::ConnAckReasonCode,
 };
-use crate::data::{MqttOneBytesInt, MqttVariableBytesInt};
-use crate::parsable::{DataParseError, Parsable};
 use bitflags::bitflags;
 use bytes::{Buf, BufMut};
 

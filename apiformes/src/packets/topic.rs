@@ -1,5 +1,7 @@
-use crate::data::MqttUtf8String;
-use crate::parsable::{DataParseError, Parsable};
+use super::{
+    data::MqttUtf8String,
+    parsable::{DataParseError, Parsable},
+};
 use bytes::{Buf, BufMut};
 
 pub struct MqttTopic(MqttUtf8String);

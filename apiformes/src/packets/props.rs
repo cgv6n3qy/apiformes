@@ -1,8 +1,10 @@
-use crate::data::{
-    MqttBinaryData, MqttFourBytesInt, MqttOneBytesInt, MqttTwoBytesInt, MqttUtf8String,
-    MqttUtf8StringPair, MqttVariableBytesInt,
+use super::{
+    data::{
+        MqttBinaryData, MqttFourBytesInt, MqttOneBytesInt, MqttTwoBytesInt, MqttUtf8String,
+        MqttUtf8StringPair, MqttVariableBytesInt,
+    },
+    parsable::{DataParseError, Parsable},
 };
-use crate::parsable::{DataParseError, Parsable};
 use bitflags::bitflags;
 use bytes::{Buf, BufMut};
 use std::collections::HashMap;
