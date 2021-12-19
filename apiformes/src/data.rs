@@ -157,7 +157,7 @@ impl MqttUtf8String {
         self.s
     }
 
-    pub fn inner(&self) -> &String {
+    pub fn inner(&self) -> &str {
         &self.s
     }
 
