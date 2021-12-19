@@ -7,7 +7,7 @@ use bitflags::bitflags;
 use bytes::{Buf, BufMut};
 use std::collections::{hash_map::Iter, HashMap};
 bitflags! {
-    pub struct ValidMessage: u16 {
+    pub struct PropOwner: u16 {
         const AUTH =            0b0000_0000_0000_0001;
         const CONNACK =         0b0000_0000_0000_0010;
         const CONNECT =         0b0000_0000_0000_0100;
@@ -29,7 +29,7 @@ bitflags! {
 
 pub struct Properties {
     size: usize,
-    valid: ValidMessage,
+    valid: PropOwner,
     props: HashMap<Property, MqttPropValue>,
 }
 impl Default for Properties {
@@ -41,27 +41,44 @@ impl Properties {
     pub fn new() -> Self {
         Properties {
             size: 0,
-            valid: ValidMessage::ALL_MESSAGES,
+            valid: PropOwner::ALL_MESSAGES,
             props: HashMap::new(),
         }
     }
-    pub fn insert(&mut self, key: Property, value: MqttPropValue) -> Result<(), &'static str> {
+    pub fn insert(&mut self, key: Property, value: MqttPropValue) -> Result<(), DataParseError> {
         let (filter, prop_type) = key.auxiliary_data();
         if value.prop_type() != prop_type {
-            return Err("Invalid value type for given key");
+            return Err(DataParseError::BadProperty);
         }
-        self.size += value.size();
         self.valid &= filter;
+        self.unchecked_insert(key, value);
+        Ok(())
+    }
+    fn unchecked_insert(&mut self, key: Property, value: MqttPropValue) {
+        self.size += value.size();
         let old = self.props.insert(key, value);
         if let Some(v) = old {
             self.size -= v.size();
         }
+    }
+    pub fn checked_insert(
+        &mut self,
+        key: Property,
+        value: MqttPropValue,
+        ty: PropOwner,
+    ) -> Result<(), DataParseError> {
+        let (filter, prop_type) = key.auxiliary_data();
+        if !filter.contains(ty) || prop_type != value.prop_type() {
+            return Err(DataParseError::BadProperty);
+        }
+        self.valid &= filter;
+        self.unchecked_insert(key, value);
         Ok(())
     }
     pub fn get(&self, key: Property) -> Option<&MqttPropValue> {
         self.props.get(&key)
     }
-    pub fn is_valid_for(&self, message: ValidMessage) -> bool {
+    pub fn is_valid_for(&self, message: PropOwner) -> bool {
         self.valid & message == message
     }
     pub fn iter(&self) -> Iter<'_, Property, MqttPropValue> {
@@ -143,111 +160,105 @@ pub enum Property {
 }
 
 impl Property {
-    fn auxiliary_data(&self) -> (ValidMessage, MqttPropValueType) {
+    fn auxiliary_data(&self) -> (PropOwner, MqttPropValueType) {
         match self {
             Property::PayloadFormatIndicator => (
-                ValidMessage::PUBLISH | ValidMessage::WILL,
+                PropOwner::PUBLISH | PropOwner::WILL,
                 MqttPropValueType::Byte,
             ),
             Property::MessageExpiryInterval => (
-                ValidMessage::PUBLISH | ValidMessage::WILL,
+                PropOwner::PUBLISH | PropOwner::WILL,
                 MqttPropValueType::FourBytesInt,
             ),
             Property::ContentType => (
-                ValidMessage::PUBLISH | ValidMessage::WILL,
+                PropOwner::PUBLISH | PropOwner::WILL,
                 MqttPropValueType::String,
             ),
             Property::ResponseTopic => (
-                ValidMessage::PUBLISH | ValidMessage::WILL,
+                PropOwner::PUBLISH | PropOwner::WILL,
                 MqttPropValueType::String,
             ),
             Property::CorrelationData => (
-                ValidMessage::PUBLISH | ValidMessage::WILL,
+                PropOwner::PUBLISH | PropOwner::WILL,
                 MqttPropValueType::Data,
             ),
             Property::SubscriptionIdentifier => (
-                ValidMessage::PUBLISH | ValidMessage::SUBSCRIBE,
+                PropOwner::PUBLISH | PropOwner::SUBSCRIBE,
                 MqttPropValueType::VarInt,
             ),
             Property::SessionExpiryInterval => (
-                ValidMessage::CONNECT | ValidMessage::CONNACK | ValidMessage::DISCONNECT,
+                PropOwner::CONNECT | PropOwner::CONNACK | PropOwner::DISCONNECT,
                 MqttPropValueType::FourBytesInt,
             ),
-            Property::AssignedClientIdentifier => {
-                (ValidMessage::CONNACK, MqttPropValueType::String)
-            }
-            Property::ServerKeepAlive => (ValidMessage::CONNACK, MqttPropValueType::TwoBytesInt),
+            Property::AssignedClientIdentifier => (PropOwner::CONNACK, MqttPropValueType::String),
+            Property::ServerKeepAlive => (PropOwner::CONNACK, MqttPropValueType::TwoBytesInt),
             Property::AuthenticationMethod => (
-                ValidMessage::CONNECT | ValidMessage::CONNACK | ValidMessage::AUTH,
+                PropOwner::CONNECT | PropOwner::CONNACK | PropOwner::AUTH,
                 MqttPropValueType::String,
             ),
             Property::AuthenticationData => (
-                ValidMessage::CONNECT | ValidMessage::CONNACK | ValidMessage::AUTH,
+                PropOwner::CONNECT | PropOwner::CONNACK | PropOwner::AUTH,
                 MqttPropValueType::Data,
             ),
-            Property::RequestProblemInformation => (ValidMessage::CONNECT, MqttPropValueType::Byte),
-            Property::WillDelayInterval => (ValidMessage::WILL, MqttPropValueType::FourBytesInt),
-            Property::RequestResponseInformation => {
-                (ValidMessage::CONNECT, MqttPropValueType::Byte)
-            }
-            Property::ResponseInformation => (ValidMessage::CONNACK, MqttPropValueType::String),
+            Property::RequestProblemInformation => (PropOwner::CONNECT, MqttPropValueType::Byte),
+            Property::WillDelayInterval => (PropOwner::WILL, MqttPropValueType::FourBytesInt),
+            Property::RequestResponseInformation => (PropOwner::CONNECT, MqttPropValueType::Byte),
+            Property::ResponseInformation => (PropOwner::CONNACK, MqttPropValueType::String),
             Property::ServerReference => (
-                ValidMessage::CONNACK | ValidMessage::DISCONNECT,
+                PropOwner::CONNACK | PropOwner::DISCONNECT,
                 MqttPropValueType::String,
             ),
             Property::ReasonString => (
-                ValidMessage::CONNACK
-                    | ValidMessage::PUBACK
-                    | ValidMessage::PUBREC
-                    | ValidMessage::PUBREL
-                    | ValidMessage::PUBCOMP
-                    | ValidMessage::SUBACK
-                    | ValidMessage::UNSUBACK
-                    | ValidMessage::DISCONNECT
-                    | ValidMessage::AUTH,
+                PropOwner::CONNACK
+                    | PropOwner::PUBACK
+                    | PropOwner::PUBREC
+                    | PropOwner::PUBREL
+                    | PropOwner::PUBCOMP
+                    | PropOwner::SUBACK
+                    | PropOwner::UNSUBACK
+                    | PropOwner::DISCONNECT
+                    | PropOwner::AUTH,
                 MqttPropValueType::String,
             ),
             Property::ReceiveMaximum => (
-                ValidMessage::CONNECT | ValidMessage::CONNACK,
+                PropOwner::CONNECT | PropOwner::CONNACK,
                 MqttPropValueType::TwoBytesInt,
             ),
             Property::TopicAliasMaximum => (
-                ValidMessage::CONNECT | ValidMessage::CONNACK,
+                PropOwner::CONNECT | PropOwner::CONNACK,
                 MqttPropValueType::TwoBytesInt,
             ),
-            Property::TopicAlias => (ValidMessage::PUBLISH, MqttPropValueType::TwoBytesInt),
-            Property::MaximumQoS => (ValidMessage::CONNACK, MqttPropValueType::Byte),
-            Property::RetainAvailable => (ValidMessage::CONNACK, MqttPropValueType::Byte),
+            Property::TopicAlias => (PropOwner::PUBLISH, MqttPropValueType::TwoBytesInt),
+            Property::MaximumQoS => (PropOwner::CONNACK, MqttPropValueType::Byte),
+            Property::RetainAvailable => (PropOwner::CONNACK, MqttPropValueType::Byte),
             Property::UserProperty => (
-                ValidMessage::CONNECT
-                    | ValidMessage::CONNACK
-                    | ValidMessage::PUBLISH
-                    | ValidMessage::WILL
-                    | ValidMessage::PUBACK
-                    | ValidMessage::PUBREC
-                    | ValidMessage::PUBREL
-                    | ValidMessage::PUBCOMP
-                    | ValidMessage::SUBSCRIBE
-                    | ValidMessage::SUBACK
-                    | ValidMessage::UNSUBSCRIBE
-                    | ValidMessage::UNSUBACK
-                    | ValidMessage::DISCONNECT
-                    | ValidMessage::AUTH,
+                PropOwner::CONNECT
+                    | PropOwner::CONNACK
+                    | PropOwner::PUBLISH
+                    | PropOwner::WILL
+                    | PropOwner::PUBACK
+                    | PropOwner::PUBREC
+                    | PropOwner::PUBREL
+                    | PropOwner::PUBCOMP
+                    | PropOwner::SUBSCRIBE
+                    | PropOwner::SUBACK
+                    | PropOwner::UNSUBSCRIBE
+                    | PropOwner::UNSUBACK
+                    | PropOwner::DISCONNECT
+                    | PropOwner::AUTH,
                 MqttPropValueType::String,
             ),
             Property::MaximumPacketSize => (
-                ValidMessage::CONNECT | ValidMessage::CONNACK,
+                PropOwner::CONNECT | PropOwner::CONNACK,
                 MqttPropValueType::FourBytesInt,
             ),
             Property::WildcardSubscriptionAvailable => {
-                (ValidMessage::CONNACK, MqttPropValueType::Byte)
+                (PropOwner::CONNACK, MqttPropValueType::Byte)
             }
             Property::SubscriptionIdentifierAvailable => {
-                (ValidMessage::CONNACK, MqttPropValueType::Byte)
+                (PropOwner::CONNACK, MqttPropValueType::Byte)
             }
-            Property::SharedSubscriptionAvailable => {
-                (ValidMessage::CONNACK, MqttPropValueType::Byte)
-            }
+            Property::SharedSubscriptionAvailable => (PropOwner::CONNACK, MqttPropValueType::Byte),
         }
     }
 }
