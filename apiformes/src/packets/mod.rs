@@ -1,6 +1,7 @@
 pub mod connack;
 pub mod connect;
 pub mod packet_type;
+pub mod ping;
 pub mod props;
 pub mod puback;
 pub mod pubcomp;
