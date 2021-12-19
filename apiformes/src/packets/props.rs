@@ -141,6 +141,7 @@ impl Parsable for Properties {
 
 #[derive(PartialEq)]
 pub(crate) enum MqttPropValueType {
+    Bool,
     Byte,
     FourBytesInt,
     String,
@@ -242,13 +243,13 @@ impl Property {
                 false,
             ),
             Property::RequestProblemInformation => {
-                (PropOwner::CONNECT, MqttPropValueType::Byte, false)
+                (PropOwner::CONNECT, MqttPropValueType::Bool, false)
             }
             Property::WillDelayInterval => {
                 (PropOwner::WILL, MqttPropValueType::FourBytesInt, false)
             }
             Property::RequestResponseInformation => {
-                (PropOwner::CONNECT, MqttPropValueType::Byte, false)
+                (PropOwner::CONNECT, MqttPropValueType::Bool, false)
             }
             Property::ResponseInformation => (PropOwner::CONNACK, MqttPropValueType::String, false),
             Property::ServerReference => (
@@ -364,6 +365,7 @@ impl Parsable for Property {
 }
 
 enum MqttPropValueInner {
+    Bool(MqttOneBytesInt),
     Byte(MqttOneBytesInt),
     FourBytesInt(MqttFourBytesInt),
     String(MqttUtf8String),
@@ -375,6 +377,13 @@ enum MqttPropValueInner {
 
 pub struct MqttPropValue(MqttPropValueInner);
 impl MqttPropValue {
+    pub fn into_bool(&self) -> Option<bool> {
+        if let MqttPropValueInner::Byte(i) = &self.0 {
+            Some(i.inner() == 1)
+        } else {
+            None
+        }
+    }
     pub fn into_u8(&self) -> Option<u8> {
         if let MqttPropValueInner::Byte(i) = &self.0 {
             Some(i.inner())
@@ -418,6 +427,13 @@ impl MqttPropValue {
             _ => None,
         }
     }
+    pub fn new_bool(b: bool) -> MqttPropValue {
+        MqttPropValue(MqttPropValueInner::Bool(MqttOneBytesInt::new(if b {
+            1
+        } else {
+            0
+        })))
+    }
     pub fn new_u8(u: u8) -> MqttPropValue {
         MqttPropValue(MqttPropValueInner::Byte(MqttOneBytesInt::new(u)))
     }
@@ -449,6 +465,7 @@ impl MqttPropValue {
     }
     fn prop_type(&self) -> MqttPropValueType {
         match &self.0 {
+            MqttPropValueInner::Bool(_) => MqttPropValueType::Bool,
             MqttPropValueInner::Byte(_) => MqttPropValueType::Byte,
             MqttPropValueInner::FourBytesInt(_) => MqttPropValueType::FourBytesInt,
             MqttPropValueInner::String(_) => MqttPropValueType::String,
@@ -460,6 +477,7 @@ impl MqttPropValue {
     }
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         match &self.0 {
+            MqttPropValueInner::Bool(v) => v.serialize(buf),
             MqttPropValueInner::Byte(v) => v.serialize(buf),
             MqttPropValueInner::FourBytesInt(v) => v.serialize(buf),
             MqttPropValueInner::String(v) => v.serialize(buf),
@@ -471,6 +489,7 @@ impl MqttPropValue {
     }
     fn deserialize<T: Buf>(buf: &mut T, ty: MqttPropValueType) -> Result<Self, DataParseError> {
         let res = match ty {
+            MqttPropValueType::Bool => MqttPropValueInner::Bool(MqttOneBytesInt::deserialize(buf)?),
             MqttPropValueType::Byte => MqttPropValueInner::Byte(MqttOneBytesInt::deserialize(buf)?),
             MqttPropValueType::FourBytesInt => {
                 MqttPropValueInner::FourBytesInt(MqttFourBytesInt::deserialize(buf)?)
@@ -493,6 +512,7 @@ impl MqttPropValue {
     }
     fn size(&self) -> usize {
         match &self.0 {
+            MqttPropValueInner::Bool(_) => 1,
             MqttPropValueInner::Byte(_) => 1,
             MqttPropValueInner::FourBytesInt(v) => v.size(),
             MqttPropValueInner::String(v) => v.size(),
