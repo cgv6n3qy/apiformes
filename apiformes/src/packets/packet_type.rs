@@ -77,8 +77,8 @@ impl PackeType {
 
 #[cfg(test)]
 mod test {
+    #[cfg(feature = "debug")]
     use super::*;
-    use bytes::{Bytes, BytesMut};
 
     #[test]
     #[cfg(feature = "debug")]
