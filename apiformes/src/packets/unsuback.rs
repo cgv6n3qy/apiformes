@@ -6,7 +6,7 @@ use super::{
 };
 use bytes::{Buf, BufMut};
 
-pub struct UnSubAck {
+pub struct UnsubAck {
     // 2.2.1 Packet Identifier
     packet_identifier: MqttTwoBytesInt,
 
@@ -17,9 +17,9 @@ pub struct UnSubAck {
     reason_codes: Vec<UnsubAckReasonCode>,
 }
 
-impl UnSubAck {
-    pub fn new(id: u16) -> UnSubAck {
-        UnSubAck {
+impl UnsubAck {
+    pub fn new(id: u16) -> UnsubAck {
+        UnsubAck {
             packet_identifier: MqttTwoBytesInt::new(id),
             props: Properties::new(),
             reason_codes: Vec::new(),
@@ -50,7 +50,7 @@ impl UnSubAck {
     }
 }
 
-impl Parsable for UnSubAck {
+impl Parsable for UnsubAck {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
         length.serialize(buf)?;
@@ -82,9 +82,9 @@ impl Parsable for UnSubAck {
             reason_codes.push(r);
         }
         if reason_codes.is_empty() {
-            Err(DataParseError::BadUnSubAckMessage)
+            Err(DataParseError::BadUnsubAckMessage)
         } else {
-            Ok(UnSubAck {
+            Ok(UnsubAck {
                 packet_identifier,
                 props,
                 reason_codes,
@@ -104,7 +104,7 @@ mod test {
     use bytes::BytesMut;
     #[test]
     fn test_unsuback() {
-        let mut unsuback = UnSubAck::new(123);
+        let mut unsuback = UnsubAck::new(123);
         unsuback.add_reason_code(UnsubAckReasonCode::UnspecifiedError);
         unsuback.add_reason_code(UnsubAckReasonCode::UnspecifiedError);
         let mut b = BytesMut::new();
@@ -120,7 +120,7 @@ mod test {
                 0x80, // reasoncode
             ][..]
         );
-        let unsuback2 = UnSubAck::deserialize(&mut b.clone()).unwrap();
+        let unsuback2 = UnsubAck::deserialize(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
         unsuback2.serialize(&mut b2).unwrap();
         assert_eq!(b, b2);

@@ -6,7 +6,7 @@ use super::{
 };
 use bytes::{Buf, BufMut};
 
-pub struct UnSubscribe {
+pub struct Unsubscribe {
     // 2.2.1 Packet Identifier
     packet_identifier: MqttTwoBytesInt,
     // 3.10.2.1 UNSUBSCRIBE Properties
@@ -15,9 +15,9 @@ pub struct UnSubscribe {
     topics: Vec<MqttTopic>,
 }
 
-impl UnSubscribe {
+impl Unsubscribe {
     pub fn new(id: u16) -> Self {
-        UnSubscribe {
+        Unsubscribe {
             packet_identifier: MqttTwoBytesInt::new(id),
             props: Properties::new(),
             topics: Vec::new(),
@@ -49,7 +49,7 @@ impl UnSubscribe {
     }
 }
 
-impl Parsable for UnSubscribe {
+impl Parsable for Unsubscribe {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
         length.serialize(buf)?;
@@ -80,9 +80,9 @@ impl Parsable for UnSubscribe {
             topics.push(topic);
         }
         if topics.is_empty() {
-            Err(DataParseError::BadUnSubscribeMessage)
+            Err(DataParseError::BadUnsubscribeMessage)
         } else {
-            Ok(UnSubscribe {
+            Ok(Unsubscribe {
                 packet_identifier,
                 props,
                 topics,
@@ -102,7 +102,7 @@ mod test {
     use bytes::BytesMut;
     #[test]
     fn test_unsubscribe() {
-        let mut unsubscribe = UnSubscribe::new(123);
+        let mut unsubscribe = Unsubscribe::new(123);
         unsubscribe.add_topic("foo").unwrap();
         unsubscribe.add_topic("bar").unwrap();
         let mut b = BytesMut::new();
@@ -118,7 +118,7 @@ mod test {
                 0x00, 0x03, 0x62, 0x61, 0x72 // subscription 2
             ][..]
         );
-        let unsubscribe2 = UnSubscribe::deserialize(&mut b.clone()).unwrap();
+        let unsubscribe2 = Unsubscribe::deserialize(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
         unsubscribe2.serialize(&mut b2).unwrap();
         assert_eq!(b, b2);
