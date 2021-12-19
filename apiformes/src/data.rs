@@ -6,6 +6,14 @@ use bytes::{Buf, BufMut, Bytes};
 use std::fmt;
 
 pub struct MqttOneBytesInt(u8);
+impl MqttOneBytesInt {
+    pub fn new(i: u8) -> Self {
+        MqttOneBytesInt(i)
+    }
+    pub fn inner(&self) -> u8 {
+        self.0
+    }
+}
 impl UncheckedParsable for MqttOneBytesInt {
     fn unchecked_serialize<T: BufMut>(&self, buf: &mut T) {
         buf.put_u8(self.0)
