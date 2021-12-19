@@ -147,6 +147,12 @@ impl Connect {
             password: None,
         })
     }
+    pub fn set_will_retain(&mut self) {
+        self.flags |= ConnectFlags::WILL_RETAIN;
+    }
+    pub fn set_clean_start(&mut self) {
+        self.flags |= ConnectFlags::CLEAN_START;
+    }
     pub fn clientid(&self) -> &str {
         self.clientid.inner()
     }
@@ -195,11 +201,23 @@ impl Connect {
     pub fn props_iter(&self) -> impl Iterator<Item = (&Property, &MqttPropValue)> {
         self.props.iter()
     }
+    // returns size without the including the length part of the header
+    // for full size use size() instead
+    fn partial_size(&self) -> usize {
+        // 7 = 6 for "MQTT" string + 1 for the version
+        7 + self.flags.size()
+            + self.keep_alive.size()
+            + self.props.size()
+            + self.clientid.size()
+            + self.will_info.as_ref().map(|w| w.size()).unwrap_or(0)
+            + self.username.as_ref().map(|u| u.size()).unwrap_or(0)
+            + self.password.as_ref().map(|p| p.size()).unwrap_or(0)
+    }
 }
 
 impl Parsable for Connect {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        let length = MqttVariableBytesInt::new(self.size() as u32 - 2)?;
+        let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
         length.serialize(buf)?;
 
         let protocol_name = MqttUtf8String::new("MQTT".to_string())?;
@@ -237,33 +255,34 @@ impl Parsable for Connect {
                 available: buf.remaining(),
             });
         }
-        let protocol_name = MqttUtf8String::deserialize(buf)?;
+        let mut buf = buf.take(length);
+        let protocol_name = MqttUtf8String::deserialize(&mut buf)?;
         if protocol_name.inner() != "MQTT" {
             return Err(DataParseError::BadConnectMessage);
         }
-        let protocol_version = MqttOneBytesInt::deserialize(buf)?;
+        let protocol_version = MqttOneBytesInt::deserialize(&mut buf)?;
         if protocol_version.inner() != 5 {
             return Err(DataParseError::UnsupportedMqttVersion);
         }
-        let flags = ConnectFlags::deserialize(buf)?;
-        let keep_alive = MqttTwoBytesInt::deserialize(buf)?;
-        let props = Properties::deserialize(buf)?;
+        let flags = ConnectFlags::deserialize(&mut buf)?;
+        let keep_alive = MqttTwoBytesInt::deserialize(&mut buf)?;
+        let props = Properties::deserialize(&mut buf)?;
         if !props.is_valid_for(PropOwner::CONNECT) {
             return Err(DataParseError::BadProperty);
         }
-        let clientid = MqttUtf8String::deserialize(buf)?;
+        let clientid = MqttUtf8String::deserialize(&mut buf)?;
         let will_info = if flags.contains(ConnectFlags::WILL) {
-            Some(Will::deserialize(buf)?)
+            Some(Will::deserialize(&mut buf)?)
         } else {
             None
         };
         let username = if flags.contains(ConnectFlags::USERNAME) {
-            Some(MqttUtf8String::deserialize(buf)?)
+            Some(MqttUtf8String::deserialize(&mut buf)?)
         } else {
             None
         };
         let password = if flags.contains(ConnectFlags::PASSWORD) {
-            Some(MqttBinaryData::deserialize(buf)?)
+            Some(MqttBinaryData::deserialize(&mut buf)?)
         } else {
             None
         };
@@ -276,22 +295,59 @@ impl Parsable for Connect {
             username,
             password,
         };
-        if packet.size() == length {
+        if packet.partial_size() == length {
             Ok(packet)
         } else {
             Err(DataParseError::BadConnectMessage)
         }
     }
     fn size(&self) -> usize {
-        // 7 = 6 for "MQTT" string + 1 for the version
-        let size = 7
-            + self.flags.size()
-            + self.keep_alive.size()
-            + self.props.size()
-            + self.clientid.size()
-            + self.will_info.as_ref().map(|w| w.size()).unwrap_or(0)
-            + self.username.as_ref().map(|u| u.size()).unwrap_or(0)
-            + self.password.as_ref().map(|p| p.size()).unwrap_or(0);
+        let size = self.partial_size();
         MqttVariableBytesInt::new(size as u32).unwrap().size() + size
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::data::MqttFourBytesInt;
+    use bytes::BytesMut;
+    #[test]
+    fn test_connect_serde() {
+        let mut connect = Connect::new("Client1".to_owned()).unwrap();
+        connect.set_clean_start();
+        connect.set_will(Will::new("Hello", Bytes::from(&b"World"[..])).unwrap());
+        connect.set_will_qos(QoS::QoS1);
+        connect.set_username("apiformes").unwrap();
+        connect.set_keep_alive(5);
+        connect
+            .add_prop(
+                Property::SessionExpiryInterval,
+                MqttPropValue::FourBytesInt(MqttFourBytesInt::new(10)),
+            )
+            .unwrap();
+        let mut b = BytesMut::new();
+        connect.serialize(&mut b).unwrap();
+        assert_eq!(b.remaining(), connect.size());
+        assert_eq!(
+            b,
+            &[
+                0x33, //variable_length
+                0x00, 0x04, 0x4d, 0x51, 0x54, 0x54, // Protocol Name
+                0x05, // Protocol version
+                0x8e, // flags
+                0x00, 0x05, // Keep alive
+                0x05, 0x11, 0x00, 0x00, 0x00, 0x0a, // Properties
+                0x00, 0x07, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x31, // clientID
+                0x00, // will props
+                0x0, 0x05, 0x48, 0x65, 0x6c, 0x6c, 0x6f, // will topic
+                0x0, 0x05, 0x57, 0x6f, 0x72, 0x6c, 0x64, // will payload][..])
+                0x00, 0x09, 0x61, 0x70, 0x69, 0x66, 0x6f, 0x72, 0x6d, 0x65, 0x73, // clientID
+            ][..]
+        );
+        let connect2 = Connect::deserialize(&mut b.clone()).unwrap();
+        let mut b2 = BytesMut::new();
+        connect2.serialize(&mut b2).unwrap();
+        assert_eq!(b, b2);
     }
 }
