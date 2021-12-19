@@ -15,6 +15,7 @@ pub enum DataParseError {
     BadTopic,
     BadRetainHandle,
     BadSubscribeMessage,
+    BadSubAckMessage,
 }
 
 pub trait UncheckedParsable {
