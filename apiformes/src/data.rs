@@ -236,7 +236,7 @@ pub struct MqttBinaryData {
 }
 
 impl MqttBinaryData {
-    pub fn new<T: Buf> (mut buf: T) -> Result<Self, DataParseError> {
+    pub fn new<T: Buf>(mut buf: T) -> Result<Self, DataParseError> {
         let d = buf.copy_to_bytes(buf.remaining());
         MqttBinaryData::verify(&d)?;
         Ok(MqttBinaryData { d })
@@ -309,7 +309,7 @@ impl Parsable for MqttUtf8StringPair {
         self.value.serialize(buf)
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        Ok(MqttUtf8StringPair{
+        Ok(MqttUtf8StringPair {
             name: MqttUtf8String::deserialize(buf)?,
             value: MqttUtf8String::deserialize(buf)?,
         })
@@ -403,7 +403,6 @@ mod test {
         let s2 = MqttUtf8String::deserialize(&mut buf).unwrap();
         assert_eq!(s2.inner(), "ABCD");
         assert_eq!(buf.remaining(), 0);
-
     }
 
     #[test]
@@ -567,7 +566,7 @@ mod test {
             _ => panic!("expected a DataParseError::BadMqttUtf8String error"),
         }
     }
-    
+
     #[test]
     fn test_serde_data_max() {
         let mut b = BytesMut::with_capacity(0x10000);
@@ -597,7 +596,7 @@ mod test {
     fn test_format_string_pair() {
         let d = MqttUtf8StringPair {
             name: MqttUtf8String::new("Hello".to_string()).unwrap(),
-            value: MqttUtf8String::new("world".to_string()).unwrap()
+            value: MqttUtf8String::new("world".to_string()).unwrap(),
         };
         assert_eq!(format!("{:?}", d), "{name: \"Hello\", value: \"world\"}");
     }
@@ -606,15 +605,17 @@ mod test {
     fn test_serde_string_pair() {
         let d1 = MqttUtf8StringPair {
             name: MqttUtf8String::new("Hello".to_string()).unwrap(),
-            value: MqttUtf8String::new("world".to_string()).unwrap()
+            value: MqttUtf8String::new("world".to_string()).unwrap(),
         };
         let mut b = BytesMut::new();
         d1.serialize(&mut b).unwrap();
-        assert_eq!(b, &[0x0, 0x5, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0, 0x5, 0x77, 0x6f, 0x72, 0x6c, 0x64][..]);
+        assert_eq!(
+            b,
+            &[0x0, 0x5, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0, 0x5, 0x77, 0x6f, 0x72, 0x6c, 0x64][..]
+        );
         let d2 = MqttUtf8StringPair::deserialize(&mut b).unwrap();
         assert_eq!(d1.name.inner(), d2.name.inner());
         assert_eq!(d1.value.inner(), d2.value.inner());
         assert_eq!(b.remaining(), 0);
     }
-
 }
