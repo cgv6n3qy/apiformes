@@ -1,5 +1,6 @@
 use super::{
     data::MqttVariableBytesInt,
+    packet::Packet,
     parsable::{DataParseError, Parsable},
     props::{MqttPropValue, PropOwner, Properties, Property},
     reason::AuthReasonCode,
@@ -34,6 +35,9 @@ impl Auth {
     }
     fn partial_size(&self) -> usize {
         self.reason_code.size() + self.props.size()
+    }
+    pub fn build(self) -> Packet {
+        Packet::Auth(self)
     }
 }
 

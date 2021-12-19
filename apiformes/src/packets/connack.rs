@@ -117,8 +117,8 @@ impl Parsable for ConnAck {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use super::super::data::MqttUtf8String;
+    use super::*;
     use bytes::BytesMut;
     #[test]
     fn test_connack() {

@@ -1,13 +1,10 @@
-use super::parsable::DataParseError;
-fn bits_u8(data: u8, start: usize, len: usize) -> u8 {
-    (data >> start) & ((2 << (len - 1)) - 1)
-}
+use super::{helpers::bits_u8, parsable::DataParseError};
 
 ///2.1.2 MQTT Control Packet type
 #[repr(u8)]
 #[derive(PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub enum PackeType {
+pub enum PacketType {
     Reserved = 0b0000,
     Connect = 0b0001,
     ConnAck = 0b0010,
@@ -26,7 +23,7 @@ pub enum PackeType {
     Auth = 0b1111,
 }
 
-impl PackeType {
+impl PacketType {
     fn flags10(&self, data: u8) -> Result<(), DataParseError> {
         if bits_u8(data, 0, 4) == 0b0010 {
             Ok(())
@@ -43,35 +40,43 @@ impl PackeType {
     }
     fn check_flags(&self, data: u8) -> Result<(), DataParseError> {
         match self {
-            PackeType::Publish => Ok(()),
-            PackeType::PubRel => self.flags10(data),
-            PackeType::Subscribe => self.flags10(data),
-            PackeType::Unsubscribe => self.flags10(data),
+            PacketType::Publish => Ok(()),
+            PacketType::PubRel => self.flags10(data),
+            PacketType::Subscribe => self.flags10(data),
+            PacketType::Unsubscribe => self.flags10(data),
             _ => self.all_flags_zero(data),
         }
     }
     pub fn parse(data: u8) -> Result<Self, DataParseError> {
         let packet_type = match bits_u8(data, 4, 4) {
-            0 => PackeType::Reserved,
-            1 => PackeType::Connect,
-            2 => PackeType::ConnAck,
-            3 => PackeType::Publish,
-            4 => PackeType::PubAck,
-            5 => PackeType::PubRec,
-            6 => PackeType::PubRel,
-            7 => PackeType::PubComp,
-            8 => PackeType::Subscribe,
-            9 => PackeType::SubAck,
-            10 => PackeType::Unsubscribe,
-            11 => PackeType::UnsubAck,
-            12 => PackeType::PingReq,
-            13 => PackeType::PingRes,
-            14 => PackeType::Disconnect,
-            15 => PackeType::Auth,
+            0 => PacketType::Reserved,
+            1 => PacketType::Connect,
+            2 => PacketType::ConnAck,
+            3 => PacketType::Publish,
+            4 => PacketType::PubAck,
+            5 => PacketType::PubRec,
+            6 => PacketType::PubRel,
+            7 => PacketType::PubComp,
+            8 => PacketType::Subscribe,
+            9 => PacketType::SubAck,
+            10 => PacketType::Unsubscribe,
+            11 => PacketType::UnsubAck,
+            12 => PacketType::PingReq,
+            13 => PacketType::PingRes,
+            14 => PacketType::Disconnect,
+            15 => PacketType::Auth,
             _ => unreachable!(),
         };
         packet_type.check_flags(data)?;
         Ok(packet_type)
+    }
+    pub fn fixed_flags(&self) -> u8 {
+        match self {
+            PacketType::PubRel => 0b0010,
+            PacketType::Subscribe => 0b0010,
+            PacketType::Unsubscribe => 0b0010,
+            _ => 0,
+        }
     }
 }
 
@@ -84,9 +89,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_auth() {
         let byte = 0b1111_0000;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::Auth);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::Auth);
         let byte = 0b1111_0011;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -96,9 +101,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_disconnect() {
         let byte = 0b1110_0000;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::Disconnect);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::Disconnect);
         let byte = 0b1110_0011;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -108,9 +113,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_pingres() {
         let byte = 0b1101_0000;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::PingRes);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::PingRes);
         let byte = 0b1101_0011;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -120,9 +125,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_pingreq() {
         let byte = 0b1100_0000;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::PingReq);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::PingReq);
         let byte = 0b1100_0011;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -132,9 +137,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_unsuback() {
         let byte = 0b1011_0000;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::UnsubAck);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::UnsubAck);
         let byte = 0b1011_0011;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -144,9 +149,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_unsub() {
         let byte = 0b1010_0010;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::Unsubscribe);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::Unsubscribe);
         let byte = 0b1010_0011;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -156,9 +161,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_suback() {
         let byte = 0b1001_0000;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::SubAck);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::SubAck);
         let byte = 0b1001_0011;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -168,9 +173,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_subscribe() {
         let byte = 0b1000_0010;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::Subscribe);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::Subscribe);
         let byte = 0b1000_0011;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -180,9 +185,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_pubcomp() {
         let byte = 0b0111_0000;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::PubComp);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::PubComp);
         let byte = 0b0111_0011;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -192,9 +197,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_pubrel() {
         let byte = 0b0110_0010;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::PubRel);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::PubRel);
         let byte = 0b0110_0011;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -204,9 +209,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_pubrec() {
         let byte = 0b0101_0000;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::PubRec);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::PubRec);
         let byte = 0b0101_0001;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -216,9 +221,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_puback() {
         let byte = 0b0100_0000;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::PubAck);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::PubAck);
         let byte = 0b0100_0001;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -228,7 +233,7 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_publish() {
         for byte in 0b0011_0000..0b0100_0000 {
-            assert_eq!(PackeType::parse(byte).unwrap(), PackeType::Publish);
+            assert_eq!(PacketType::parse(byte).unwrap(), PacketType::Publish);
         }
     }
 
@@ -236,9 +241,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_connack() {
         let byte = 0b0010_0000;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::ConnAck);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::ConnAck);
         let byte = 0b0010_0001;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -248,9 +253,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_connect() {
         let byte = 0b0001_0000;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::Connect);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::Connect);
         let byte = 0b0001_0001;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
@@ -260,9 +265,9 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_packet_type_reserved() {
         let byte = 0b0000_0000;
-        assert_eq!(PackeType::parse(byte).unwrap(), PackeType::Reserved);
+        assert_eq!(PacketType::parse(byte).unwrap(), PacketType::Reserved);
         let byte = 0b0000_0001;
-        match PackeType::parse(byte) {
+        match PacketType::parse(byte) {
             Err(DataParseError::BadPacketType) => (),
             _ => panic!("Expected DataParseError::BadPacketType"),
         }
