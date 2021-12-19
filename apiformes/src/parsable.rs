@@ -1,6 +1,6 @@
 use bytes::{Buf, BufMut};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum DataParseError {
     InsufficientBuffer { needed: usize, available: usize },
     BadMqttUtf8String,

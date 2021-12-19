@@ -62,8 +62,8 @@ impl Properties {
         value: MqttPropValue,
         multiple: bool,
     ) -> Option<MqttPropValue> {
-        self.size += value.size();
         if multiple {
+            self.size += key.size() + value.size();
             let old = self.props.get_mut(&key);
             match old {
                 Some(old) => old.push(value),
@@ -71,9 +71,12 @@ impl Properties {
             }
             None
         } else {
+            self.size += value.size();
             let old = self.props.insert(key, vec![value]);
             if let Some(v) = old.as_ref() {
                 self.size -= v[0].size();
+            } else {
+                self.size += key.size();
             }
             old.map(|mut v| v.remove(0))
         }
@@ -119,19 +122,18 @@ impl Parsable for Properties {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let mut size = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
         let mut table = Properties::new();
+        let mut buf = buf.take(size);
         while size != 0 {
-            let key = Property::deserialize(buf)?;
+            let key = Property::deserialize(&mut buf)?;
             let (_, ty, _) = key.auxiliary_data();
-            let value = MqttPropValue::deserialize(buf, ty)?;
+            let value = MqttPropValue::deserialize(&mut buf, ty)?;
             size -= key.size() + value.size();
-            // the unwrap is justified here because we just checked that the
-            // deserialization type is based on auxiliary data
-            table.insert(key, value).unwrap();
+            table.insert(key, value)?;
         }
         Ok(table)
     }
     fn size(&self) -> usize {
-        self.size
+        MqttVariableBytesInt::new(self.size as u32).unwrap().size() + self.size
     }
 }
 
@@ -421,5 +423,158 @@ impl MqttPropValue {
             MqttPropValue::VarInt(v) => v.size(),
             MqttPropValue::TwoBytesInt(v) => v.size(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use bytes::{Bytes, BytesMut};
+
+    #[test]
+    #[cfg(feature = "debug")]
+    fn test_failing_props() {
+        let mut props = Properties::new();
+        let res = props
+            .checked_insert(
+                Property::ReasonString,
+                MqttPropValue::Byte(MqttOneBytesInt::new(5)),
+                PropOwner::CONNACK,
+            )
+            .err()
+            .unwrap();
+        assert_eq!(res, DataParseError::BadProperty);
+        let res = props
+            .checked_insert(
+                Property::ReasonString,
+                MqttPropValue::String(MqttUtf8String::new("Hello".to_owned()).unwrap()),
+                PropOwner::CONNECT,
+            )
+            .err()
+            .unwrap();
+        assert_eq!(res, DataParseError::BadProperty);
+        let mut b = BytesMut::new();
+        props.serialize(&mut b).unwrap();
+        assert_eq!(b, &[0x0][..]);
+    }
+
+    #[test]
+    fn test_props() {
+        let mut props = Properties::new();
+        props
+            .checked_insert(
+                Property::ReasonString,
+                MqttPropValue::String(MqttUtf8String::new("Hello".to_owned()).unwrap()),
+                PropOwner::CONNACK,
+            )
+            .unwrap();
+        let mut b = BytesMut::new();
+        props.serialize(&mut b).unwrap();
+        assert_eq!(
+            b,
+            &[0x08, 0x1f, 0x00, 0x05, 0x48, 0x65, 0x6c, 0x6c, 0x6f][..]
+        );
+        assert_eq!(b.remaining(), props.size());
+
+        let props2 = Properties::deserialize(&mut b.clone()).unwrap();
+        let mut b2 = BytesMut::new();
+        props2.serialize(&mut b2).unwrap();
+        assert_eq!(b, b2);
+    }
+
+    #[test]
+    fn test_props_no_duplicate_insert() {
+        let mut props = Properties::new();
+        props
+            .checked_insert(
+                Property::ReasonString,
+                MqttPropValue::String(MqttUtf8String::new("Hello".to_owned()).unwrap()),
+                PropOwner::CONNACK,
+            )
+            .unwrap();
+        let mut b = BytesMut::new();
+        props.serialize(&mut b).unwrap();
+        assert_eq!(
+            b,
+            &[0x08, 0x1f, 0x00, 0x05, 0x48, 0x65, 0x6c, 0x6c, 0x6f][..]
+        );
+        assert_eq!(b.remaining(), props.size());
+
+        props
+            .checked_insert(
+                Property::ReasonString,
+                MqttPropValue::String(MqttUtf8String::new("World".to_owned()).unwrap()),
+                PropOwner::CONNACK,
+            )
+            .unwrap();
+        let mut b = BytesMut::new();
+        props.serialize(&mut b).unwrap();
+        assert_eq!(
+            b,
+            &[0x08, 0x1f, 0x00, 0x05, 0x57, 0x6f, 0x72, 0x6c, 0x64][..]
+        );
+        assert_eq!(b.remaining(), props.size());
+    }
+    #[test]
+    fn test_props_truncated() {
+        let mut b = Bytes::from(
+            &[
+                0x09, 0x1f, 0x00, 0x05, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x1f, 0x00, 0x05, 0x48, 0x65,
+                0x6c, 0x6c, 0x6f,
+            ][..],
+        );
+        assert_eq!(
+            Properties::deserialize(&mut b).err().unwrap(),
+            DataParseError::InsufficientBuffer {
+                needed: 2,
+                available: 0
+            }
+        );
+    }
+    #[test]
+    fn test_props_no_duplicate_deserialize() {
+        let mut b = Bytes::from(
+            &[
+                0x10, 0x1f, 0x00, 0x05, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x1f, 0x00, 0x05, 0x48, 0x65,
+                0x6c, 0x6c, 0x6f,
+            ][..],
+        );
+        assert_eq!(
+            Properties::deserialize(&mut b).err().unwrap(),
+            DataParseError::BadProperty
+        );
+    }
+
+    #[test]
+    fn test_props_duplicate() {
+        let mut props = Properties::new();
+        props
+            .checked_insert(
+                Property::UserProperty,
+                MqttPropValue::String(MqttUtf8String::new("Hello".to_owned()).unwrap()),
+                PropOwner::CONNACK,
+            )
+            .unwrap();
+        props
+            .checked_insert(
+                Property::UserProperty,
+                MqttPropValue::String(MqttUtf8String::new("World".to_owned()).unwrap()),
+                PropOwner::CONNACK,
+            )
+            .unwrap();
+        let mut b = BytesMut::new();
+        props.serialize(&mut b).unwrap();
+        assert_eq!(
+            b,
+            &[
+                0x10, 0x26, 0x00, 0x05, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x26, 0x00, 0x05, 0x57, 0x6f,
+                0x72, 0x6c, 0x64
+            ][..]
+        );
+        assert_eq!(b.remaining(), props.size());
+        let props2 = Properties::deserialize(&mut b.clone()).unwrap();
+        let mut b2 = BytesMut::new();
+        props2.serialize(&mut b2).unwrap();
+        assert_eq!(b, b2);
     }
 }
