@@ -1,5 +1,6 @@
 use super::{
     data::{MqttOneBytesInt, MqttVariableBytesInt},
+    packet::Packet,
     parsable::{DataParseError, Parsable},
     props::{MqttPropValue, PropOwner, Properties, Property},
     reason::ConnAckReasonCode,
@@ -72,6 +73,9 @@ impl ConnAck {
     }
     fn partial_size(&self) -> usize {
         self.flags.size() + self.reason_code.size() + self.props.size()
+    }
+    pub fn build(self) -> Packet {
+        Packet::ConnAck(self)
     }
 }
 

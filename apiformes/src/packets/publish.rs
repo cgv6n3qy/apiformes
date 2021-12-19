@@ -1,5 +1,6 @@
 use super::{
     data::{MqttOneBytesInt, MqttTwoBytesInt, MqttVariableBytesInt},
+    packet::Packet,
     parsable::{DataParseError, Parsable},
     props::{MqttPropValue, PropOwner, Properties, Property},
     qos::QoS,
@@ -152,6 +153,9 @@ impl Publish {
                 .unwrap_or(0)
             + self.props.size()
             + self.payload.remaining()
+    }
+    pub fn build(self) -> Packet {
+        Packet::Publish(self)
     }
 }
 

@@ -2,6 +2,7 @@ use super::{
     data::{
         MqttBinaryData, MqttOneBytesInt, MqttTwoBytesInt, MqttUtf8String, MqttVariableBytesInt,
     },
+    packet::Packet,
     parsable::{DataParseError, Parsable},
     props::{MqttPropValue, PropOwner, Properties, Property},
     qos::QoS,
@@ -235,6 +236,9 @@ impl Connect {
             + self.will_info.as_ref().map(|w| w.size()).unwrap_or(0)
             + self.username.as_ref().map(|u| u.size()).unwrap_or(0)
             + self.password.as_ref().map(|p| p.size()).unwrap_or(0)
+    }
+    pub fn build(self) -> Packet {
+        Packet::Connect(self)
     }
 }
 

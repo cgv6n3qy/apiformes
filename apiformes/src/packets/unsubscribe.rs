@@ -1,5 +1,6 @@
 use super::{
     data::{MqttTwoBytesInt, MqttVariableBytesInt},
+    packet::Packet,
     parsable::{DataParseError, Parsable},
     props::{MqttPropValue, PropOwner, Properties, Property},
     topic::MqttTopic,
@@ -46,6 +47,9 @@ impl Unsubscribe {
         self.packet_identifier.size()
             + self.props.size()
             + self.topics.iter().map(|t| t.size()).sum::<usize>()
+    }
+    pub fn build(self) -> Packet {
+        Packet::Unsubscribe(self)
     }
 }
 

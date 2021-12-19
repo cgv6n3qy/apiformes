@@ -1,22 +1,29 @@
 use super::{
     data::MqttVariableBytesInt,
+    packet::Packet,
     parsable::{DataParseError, Parsable},
 };
 use bytes::{Buf, BufMut};
 
-pub struct PingReq {}
-impl Default for PingReq {
+pub struct Ping {}
+impl Default for Ping {
     fn default() -> Self {
         Self::new()
     }
 }
-impl PingReq {
-    pub fn new() -> PingReq {
-        PingReq {}
+impl Ping {
+    pub fn new() -> Ping {
+        Ping {}
+    }
+    pub fn build_req(self) -> Packet {
+        Packet::PingReq(self)
+    }
+    pub fn build_res(self) -> Packet {
+        Packet::PingRes(self)
     }
 }
 
-impl Parsable for PingReq {
+impl Parsable for Ping {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let length = MqttVariableBytesInt::new(0)?;
         length.serialize(buf)?;
@@ -25,7 +32,7 @@ impl Parsable for PingReq {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
         match length {
-            0 => Ok(PingReq {}),
+            0 => Ok(Ping {}),
             _ => Err(DataParseError::BadPing),
         }
     }
@@ -33,5 +40,3 @@ impl Parsable for PingReq {
         1
     }
 }
-
-pub type PingRes = PingReq;

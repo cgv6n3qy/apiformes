@@ -1,5 +1,6 @@
 use super::{
     data::{MqttTwoBytesInt, MqttVariableBytesInt},
+    packet::Packet,
     parsable::{DataParseError, Parsable},
     props::{MqttPropValue, PropOwner, Properties, Property},
     reason::PubCompReasonCode,
@@ -44,6 +45,9 @@ impl PubComp {
     }
     fn partial_size(&self) -> usize {
         self.packet_identifier.size() + self.reason_code.size() + self.props.size()
+    }
+    pub fn build(self) -> Packet {
+        Packet::PubComp(self)
     }
 }
 

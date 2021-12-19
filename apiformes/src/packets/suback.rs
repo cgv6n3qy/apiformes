@@ -1,5 +1,6 @@
 use super::{
     data::{MqttTwoBytesInt, MqttVariableBytesInt},
+    packet::Packet,
     parsable::{DataParseError, Parsable},
     props::{MqttPropValue, PropOwner, Properties, Property},
     reason::SubAckReasonCode,
@@ -47,6 +48,9 @@ impl SubAck {
         self.packet_identifier.size()
             + self.props.size()
             + self.reason_codes.iter().map(|r| r.size()).sum::<usize>()
+    }
+    pub fn build(self) -> Packet {
+        Packet::SubAck(self)
     }
 }
 

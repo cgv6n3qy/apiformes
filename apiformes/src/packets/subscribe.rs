@@ -1,5 +1,6 @@
 use super::{
     data::{MqttOneBytesInt, MqttTwoBytesInt, MqttVariableBytesInt},
+    packet::Packet,
     parsable::{DataParseError, Parsable},
     props::{MqttPropValue, PropOwner, Properties, Property},
     qos::QoS,
@@ -151,6 +152,9 @@ impl Subscribe {
                 .iter()
                 .map(|(k, v)| k.size() + v.size())
                 .sum::<usize>()
+    }
+    pub fn build(self) -> Packet {
+        Packet::Subscribe(self)
     }
 }
 

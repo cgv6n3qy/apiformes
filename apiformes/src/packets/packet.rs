@@ -7,7 +7,7 @@ use super::{
     helpers::bits_u8,
     packet_type::PacketType,
     parsable::{DataParseError, Parsable},
-    ping::{PingReq, PingRes},
+    ping::Ping,
     puback::PubAck,
     pubcomp::PubComp,
     publish::Publish,
@@ -32,8 +32,8 @@ pub enum Packet {
     SubAck(SubAck),
     Unsubscribe(Unsubscribe),
     UnsubAck(UnsubAck),
-    PingReq(PingReq),
-    PingRes(PingRes),
+    PingReq(Ping),
+    PingRes(Ping),
     Disconnect(Disconnect),
     Auth(Auth),
 }
@@ -178,8 +178,8 @@ impl Parsable for Packet {
             PacketType::SubAck => Ok(Packet::SubAck(SubAck::deserialize(buf)?)),
             PacketType::Unsubscribe => Ok(Packet::Unsubscribe(Unsubscribe::deserialize(buf)?)),
             PacketType::UnsubAck => Ok(Packet::UnsubAck(UnsubAck::deserialize(buf)?)),
-            PacketType::PingReq => Ok(Packet::PingReq(PingReq::deserialize(buf)?)),
-            PacketType::PingRes => Ok(Packet::PingRes(PingRes::deserialize(buf)?)),
+            PacketType::PingReq => Ok(Packet::PingReq(Ping::deserialize(buf)?)),
+            PacketType::PingRes => Ok(Packet::PingRes(Ping::deserialize(buf)?)),
             PacketType::Disconnect => Ok(Packet::Disconnect(Disconnect::deserialize(buf)?)),
             PacketType::Auth => Ok(Packet::Auth(Auth::deserialize(buf)?)),
         }
@@ -202,5 +202,155 @@ impl Parsable for Packet {
             Packet::Disconnect(p) => p.size(),
             Packet::Auth(p) => p.size(),
         }
+    }
+}
+#[cfg(test)]
+mod test {
+    use super::super::prelude::*;
+    use bytes::{Buf, Bytes, BytesMut};
+    #[test]
+    fn test_auth_packet() {
+        let auth = Auth::new(AuthReasonCode::ReAuthenticate).build();
+        let mut b = BytesMut::new();
+        auth.to_bytes(&mut b).unwrap();
+        assert_eq!(b.remaining(), auth.size());
+        assert_eq!(
+            b,
+            &[
+                0xf0, // auth
+                0x02, // size
+                0x19, // reasoncode
+                0x00
+            ][..]
+        );
+        let auth2 = Packet::from_bytes(&mut b.clone()).unwrap();
+        let mut b2 = BytesMut::new();
+        auth2.to_bytes(&mut b2).unwrap();
+        assert_eq!(b, b2);
+    }
+    #[test]
+    fn test_connack_packet() {
+        let mut connack = ConnAck::new();
+        connack.set_session_present();
+        connack.set_reason_code(ConnAckReasonCode::Banned);
+        connack
+            .add_prop(
+                Property::ReasonString,
+                MqttPropValue::new_string("Déjà vu").unwrap(),
+            )
+            .unwrap();
+        let connack = connack.build();
+        let mut b = BytesMut::new();
+        connack.to_bytes(&mut b).unwrap();
+        assert_eq!(b.remaining(), connack.size());
+        assert_eq!(
+            b,
+            &[
+                0x20, // connack
+                0x0f, // size
+                0x01, // flag
+                0x8a, // reasoncode
+                0x0c, // props size
+                0x1f, // props code
+                0x00, 0x09, 0x44, 0xc3, 0xa9, 0x6a, 0xc3, 0xa0, 0x20, 0x76, 0x75 // string
+            ][..]
+        );
+        let connack2 = Packet::from_bytes(&mut b.clone()).unwrap();
+        let mut b2 = BytesMut::new();
+        connack2.to_bytes(&mut b2).unwrap();
+        assert_eq!(b, b2);
+    }
+    #[test]
+    fn test_connect_packet() {
+        let mut connect = Connect::new("Client1".to_owned()).unwrap();
+        connect.set_clean_start();
+        connect.set_will(Will::new("Hello", Bytes::from(&b"World"[..])).unwrap());
+        connect.set_will_qos(QoS::QoS1);
+        connect.set_username("apiformes").unwrap();
+        connect.set_keep_alive(5);
+        connect
+            .add_prop(Property::SessionExpiryInterval, MqttPropValue::new_u32(10))
+            .unwrap();
+        let connect = connect.build();
+        let mut b = BytesMut::new();
+        connect.to_bytes(&mut b).unwrap();
+        assert_eq!(b.remaining(), connect.size());
+        assert_eq!(
+            b,
+            &[
+                0x10, // connect
+                0x33, //variable_length
+                0x00, 0x04, 0x4d, 0x51, 0x54, 0x54, // Protocol Name
+                0x05, // Protocol version
+                0x8e, // flags
+                0x00, 0x05, // Keep alive
+                0x05, 0x11, 0x00, 0x00, 0x00, 0x0a, // Properties
+                0x00, 0x07, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x31, // clientID
+                0x00, // will props
+                0x0, 0x05, 0x48, 0x65, 0x6c, 0x6c, 0x6f, // will topic
+                0x0, 0x05, 0x57, 0x6f, 0x72, 0x6c, 0x64, // will payload][..])
+                0x00, 0x09, 0x61, 0x70, 0x69, 0x66, 0x6f, 0x72, 0x6d, 0x65, 0x73, // clientID
+            ][..]
+        );
+        let connect2 = Packet::from_bytes(&mut b.clone()).unwrap();
+        let mut b2 = BytesMut::new();
+        connect2.serialize(&mut b2).unwrap();
+        assert_eq!(b, b2);
+    }
+    #[test]
+    fn test_disconnect_packet() {
+        let disconnect = Disconnect::new(DisconnectReasonCode::UnspecifiedError).build();
+        let mut b = BytesMut::new();
+        disconnect.to_bytes(&mut b).unwrap();
+        assert_eq!(b.remaining(), disconnect.size());
+        assert_eq!(
+            b,
+            &[
+                0xe0, //disconnect
+                0x02, // size
+                0x80, // reasoncode
+                0x00
+            ][..]
+        );
+        let disconnect2 = Packet::from_bytes(&mut b.clone()).unwrap();
+        let mut b2 = BytesMut::new();
+        disconnect2.serialize(&mut b2).unwrap();
+        assert_eq!(b, b2);
+    }
+    #[test]
+    fn test_ping_req_packet() {
+        let ping_req = Ping::new().build_req();
+        let mut b = BytesMut::new();
+        ping_req.to_bytes(&mut b).unwrap();
+        assert_eq!(b.remaining(), ping_req.size());
+        assert_eq!(
+            b,
+            &[
+                0xc0, // pingreq
+                0x00, // size
+            ][..]
+        );
+        let ping_req2 = Packet::from_bytes(&mut b.clone()).unwrap();
+        let mut b2 = BytesMut::new();
+        ping_req2.serialize(&mut b2).unwrap();
+        assert_eq!(b, b2);
+    }
+    #[test]
+    fn test_ping_res_packet() {
+        let ping_res = Ping::new().build_res();
+        let mut b = BytesMut::new();
+        ping_res.to_bytes(&mut b).unwrap();
+        assert_eq!(b.remaining(), ping_res.size());
+        assert_eq!(
+            b,
+            &[
+                0xd0, // pingres
+                0x00, // size
+            ][..]
+        );
+        let ping_res2 = Packet::from_bytes(&mut b.clone()).unwrap();
+        let mut b2 = BytesMut::new();
+        ping_res2.serialize(&mut b2).unwrap();
+        assert_eq!(b, b2);
     }
 }
