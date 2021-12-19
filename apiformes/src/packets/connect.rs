@@ -8,6 +8,7 @@ use crate::data::{
 use crate::parsable::{DataParseError, Parsable};
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes};
+use std::convert::TryInto;
 
 bitflags! {
     pub struct ConnectFlags: u8 {
@@ -21,6 +22,8 @@ bitflags! {
         const WILL_RETAIN = 0b0010_0000;
         const PASSWORD =    0b0100_0000;
         const USERNAME =    0b1000_0000;
+
+        const NO_FLAGS =    0b0000_0000;
     }
 }
 
@@ -31,7 +34,11 @@ impl Parsable for ConnectFlags {
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let raw_flags = MqttOneBytesInt::deserialize(buf)?;
-        ConnectFlags::from_bits(raw_flags.inner()).ok_or(DataParseError::BadConnectMessage)
+        let flags =
+            ConnectFlags::from_bits(raw_flags.inner()).ok_or(DataParseError::BadConnectMessage)?;
+        // sanity check on qos
+        let _: QoS = flags.try_into()?;
+        Ok(flags)
     }
     fn size(&self) -> usize {
         1
@@ -44,6 +51,21 @@ impl From<QoS> for ConnectFlags {
             QoS::QoS0 => ConnectFlags::from_bits_truncate(0),
             QoS::QoS1 => ConnectFlags::WILL_QOS1,
             QoS::QoS2 => ConnectFlags::WILL_QOS2,
+        }
+    }
+}
+
+impl TryInto<QoS> for ConnectFlags {
+    type Error = DataParseError;
+    fn try_into(self) -> Result<QoS, Self::Error> {
+        if self.contains(ConnectFlags::WILL_QOS1 | ConnectFlags::WILL_QOS2) {
+            return Err(DataParseError::BadQoS);
+        }
+        match self & (ConnectFlags::WILL_QOS1 | ConnectFlags::WILL_QOS2) {
+            ConnectFlags::WILL_QOS1 => Ok(QoS::QoS1),
+            ConnectFlags::WILL_QOS2 => Ok(QoS::QoS2),
+            ConnectFlags::NO_FLAGS => Ok(QoS::QoS0),
+            _ => unreachable!(),
         }
     }
 }
@@ -349,5 +371,13 @@ mod test {
         let mut b2 = BytesMut::new();
         connect2.serialize(&mut b2).unwrap();
         assert_eq!(b, b2);
+    }
+    #[test]
+    fn test_invalid_qos() {
+        let mut b = Bytes::from(&[0b0001_1000][..]);
+        assert_eq!(
+            ConnectFlags::deserialize(&mut b).err().unwrap(),
+            DataParseError::BadQoS
+        );
     }
 }

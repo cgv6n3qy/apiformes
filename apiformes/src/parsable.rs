@@ -11,6 +11,7 @@ pub enum DataParseError {
     BadReasonCode,
     BadConnectMessage,
     UnsupportedMqttVersion,
+    BadQoS,
 }
 
 pub trait UncheckedParsable {
