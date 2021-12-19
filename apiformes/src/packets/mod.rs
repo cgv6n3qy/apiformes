@@ -9,4 +9,5 @@ pub mod pubrec;
 pub mod pubrel;
 pub mod qos;
 pub mod reason;
+pub mod subscribe;
 pub mod topic;
