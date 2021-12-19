@@ -47,6 +47,15 @@ impl Parsable for MqttOneBytesInt {
 /// 1.5.2 Two Byte Integer
 pub struct MqttTwoBytesInt(u16);
 
+impl MqttTwoBytesInt {
+    pub fn new(i: u16) -> Self {
+        MqttTwoBytesInt(i)
+    }
+    pub fn inner(&self) -> u16 {
+        self.0
+    }
+}
+
 impl UncheckedParsable for MqttTwoBytesInt {
     fn unchecked_serialize<T: BufMut>(&self, buf: &mut T) {
         buf.put_u16(self.0)
@@ -86,6 +95,15 @@ impl fmt::Debug for MqttTwoBytesInt {
 
 /// 1.5.3 Four Byte Integer
 pub struct MqttFourBytesInt(u32);
+
+impl MqttFourBytesInt {
+    pub fn new(i: u32) -> Self {
+        MqttFourBytesInt(i)
+    }
+    pub fn inner(&self) -> u32 {
+        self.0
+    }
+}
 
 impl UncheckedParsable for MqttFourBytesInt {
     fn unchecked_serialize<T: BufMut>(&self, buf: &mut T) {
