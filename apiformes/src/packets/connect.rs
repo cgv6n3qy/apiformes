@@ -106,8 +106,9 @@ impl Will {
     pub fn payload(&mut self) -> &Bytes {
         self.payload.inner()
     }
-    pub fn set_payload(&mut self) -> &Bytes {
-        self.payload.inner()
+    pub fn set_payload<T: Buf>(&mut self, buf: T) -> Result<(), DataParseError> {
+        self.payload = MqttBinaryData::new(buf)?;
+        Ok(())
     }
 }
 impl Parsable for Will {
