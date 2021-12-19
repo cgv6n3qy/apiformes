@@ -383,6 +383,27 @@ pub struct MqttUtf8StringPair {
     pub value: MqttUtf8String,
 }
 
+impl MqttUtf8StringPair {
+    pub fn new(k: String, v: String) -> Result<Self, DataParseError> {
+        Ok(MqttUtf8StringPair {
+            name: MqttUtf8String::new(k)?,
+            value: MqttUtf8String::new(v)?,
+        })
+    }
+
+    pub fn unwrap(self) -> (String, String) {
+        (self.name.unwrap(), self.value.unwrap())
+    }
+
+    pub fn inner(&self) -> (&str, &str) {
+        (self.name.inner(), self.value.inner())
+    }
+
+    pub fn inner_mut(&mut self) -> (&mut String, &mut String) {
+        (self.name.inner_mut(), self.value.inner_mut())
+    }
+}
+
 impl Parsable for MqttUtf8StringPair {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         self.name.serialize(buf)?;

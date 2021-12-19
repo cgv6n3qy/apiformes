@@ -6,7 +6,7 @@ use super::{
     parsable::{DataParseError, Parsable},
 };
 use bitflags::bitflags;
-use bytes::{Buf, BufMut};
+use bytes::{Buf, BufMut, Bytes};
 use std::collections::HashMap;
 bitflags! {
     pub struct PropOwner: u16 {
@@ -373,6 +373,73 @@ pub enum MqttPropValue {
 }
 
 impl MqttPropValue {
+    pub fn into_u8(&self) -> Option<u8> {
+        if let MqttPropValue::Byte(i) = self {
+            Some(i.inner())
+        } else {
+            None
+        }
+    }
+    pub fn into_str(&self) -> Option<&str> {
+        if let MqttPropValue::String(s) = self {
+            Some(s.inner())
+        } else {
+            None
+        }
+    }
+    pub fn into_str_pair(&self) -> Option<(&str, &str)> {
+        if let MqttPropValue::StringPair(d) = self {
+            Some(d.inner())
+        } else {
+            None
+        }
+    }
+    pub fn into_data(&self) -> Option<&Bytes> {
+        if let MqttPropValue::Data(d) = self {
+            Some(d.inner())
+        } else {
+            None
+        }
+    }
+
+    pub fn into_u16(&self) -> Option<u16> {
+        if let MqttPropValue::TwoBytesInt(i) = self {
+            Some(i.inner())
+        } else {
+            None
+        }
+    }
+    pub fn into_u32(&self) -> Option<u32> {
+        match self {
+            MqttPropValue::VarInt(i) => Some(i.inner()),
+            MqttPropValue::FourBytesInt(i) => Some(i.inner()),
+            _ => None,
+        }
+    }
+    pub fn new_u8(u: u8) -> MqttPropValue {
+        MqttPropValue::Byte(MqttOneBytesInt::new(u))
+    }
+    pub fn new_u32(u: u32) -> MqttPropValue {
+        MqttPropValue::FourBytesInt(MqttFourBytesInt::new(u))
+    }
+    pub fn new_string(buf: &str) -> Result<MqttPropValue, DataParseError> {
+        Ok(MqttPropValue::String(MqttUtf8String::new(buf.to_string())?))
+    }
+    pub fn new_string_pair(k: &str, v: &str) -> Result<MqttPropValue, DataParseError> {
+        Ok(MqttPropValue::StringPair(MqttUtf8StringPair::new(
+            k.to_string(),
+            v.to_string(),
+        )?))
+    }
+    pub fn new_data<T: Buf>(buf: T) -> Result<MqttPropValue, DataParseError> {
+        Ok(MqttPropValue::Data(MqttBinaryData::new(buf)?))
+    }
+    pub fn new_varint(u: u32) -> Result<MqttPropValue, DataParseError> {
+        Ok(MqttPropValue::VarInt(MqttVariableBytesInt::new(u)?))
+    }
+    pub fn new_u16(u: u16) -> MqttPropValue {
+        MqttPropValue::TwoBytesInt(MqttTwoBytesInt::new(u))
+    }
     fn prop_type(&self) -> MqttPropValueType {
         match self {
             MqttPropValue::Byte(_) => MqttPropValueType::Byte,
