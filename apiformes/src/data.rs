@@ -33,6 +33,9 @@ impl Parsable for MqttTwoBytesInt {
             Ok(Self::unchecked_deserialize(buf))
         }
     }
+    fn size(&self) -> usize {
+        2
+    }
 }
 
 #[cfg(feature = "debug")]
@@ -69,6 +72,9 @@ impl Parsable for MqttFourBytesInt {
         } else {
             Ok(Self::unchecked_deserialize(buf))
         }
+    }
+    fn size(&self) -> usize {
+        4
     }
 }
 
@@ -149,6 +155,9 @@ impl Parsable for MqttUtf8String {
         buf.advance(len);
         MqttUtf8String::new(s)
     }
+    fn size(&self) -> usize {
+        2 + self.s.len()
+    }
 }
 
 #[cfg(feature = "debug")]
@@ -221,6 +230,17 @@ impl Parsable for MqttVariableBytesInt {
         }
         Ok(MqttVariableBytesInt { i: value })
     }
+    fn size(&self) -> usize {
+        if self.i < 0x80 {
+            1
+        } else if self.i < 0x4000 {
+            2
+        } else if self.i < 0x200000 {
+            3
+        } else {
+            4
+        }
+    }
 }
 
 #[cfg(feature = "debug")]
@@ -279,6 +299,9 @@ impl Parsable for MqttBinaryData {
         let bytes = buf.copy_to_bytes(len);
         MqttBinaryData::new(bytes)
     }
+    fn size(&self) -> usize {
+        2 + self.d.remaining()
+    }
 }
 
 #[cfg(feature = "debug")]
@@ -314,6 +337,9 @@ impl Parsable for MqttUtf8StringPair {
             value: MqttUtf8String::deserialize(buf)?,
         })
     }
+    fn size(&self) -> usize {
+        self.name.size() + self.value.size()
+    }
 }
 
 #[cfg(feature = "debug")]
@@ -339,6 +365,7 @@ mod test {
         let i1 = MqttTwoBytesInt(0xff);
         i1.serialize(&mut buf).unwrap();
         assert_eq!(&buf[..], [0x00, 0xff]);
+        assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttTwoBytesInt::deserialize(&mut buf).unwrap();
         assert_eq!(i2.0, i1.0);
         assert_eq!(buf.remaining(), 0);
@@ -369,6 +396,7 @@ mod test {
         let i1 = MqttFourBytesInt(0xccddeeff);
         i1.serialize(&mut buf).unwrap();
         assert_eq!(&buf[..], [0xcc, 0xdd, 0xee, 0xff]);
+        assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttFourBytesInt::deserialize(&mut buf).unwrap();
         assert_eq!(i2.0, i1.0);
         assert_eq!(buf.remaining(), 0);
@@ -400,6 +428,7 @@ mod test {
         let s1 = MqttUtf8String::new("ABCD".to_string()).unwrap();
         s1.serialize(&mut buf).unwrap();
         assert_eq!(&buf[..], [0x00, 0x04, 0x41, 0x42, 0x43, 0x44]);
+        assert_eq!(buf.remaining(), s1.size());
         let s2 = MqttUtf8String::deserialize(&mut buf).unwrap();
         assert_eq!(s2.inner(), "ABCD");
         assert_eq!(buf.remaining(), 0);
@@ -417,9 +446,11 @@ mod test {
     #[test]
     fn test_serde_data_uft8_string_with_zero_width_space() {
         let mut buf = BytesMut::from(&[0x00, 0x04, 0x41, 0xef, 0xbb, 0xbf][..]);
+        let old_buf_size = buf.remaining();
         let s = MqttUtf8String::deserialize(&mut buf).unwrap();
         assert_eq!(s.inner(), "A\u{feff}");
         assert_eq!(buf.remaining(), 0);
+        assert_eq!(old_buf_size, s.size());
     }
 
     #[test]
@@ -453,6 +484,7 @@ mod test {
         let i1 = MqttVariableBytesInt::new(0x11).unwrap();
         i1.serialize(&mut buf).unwrap();
         assert_eq!(&buf[..], [0x11]);
+        assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
         assert_eq!(i2.i, i1.i);
         assert_eq!(buf.remaining(), 0);
@@ -464,6 +496,7 @@ mod test {
         let i1 = MqttVariableBytesInt::new(128).unwrap();
         i1.serialize(&mut buf).unwrap();
         assert_eq!(&buf[..], [0x80, 0x1]);
+        assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
         assert_eq!(i2.i, i1.i);
         assert_eq!(buf.remaining(), 0);
@@ -475,6 +508,7 @@ mod test {
         let i1 = MqttVariableBytesInt::new(0x3fff).unwrap();
         i1.serialize(&mut buf).unwrap();
         assert_eq!(&buf[..], [0xff, 0x7f]);
+        assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
         assert_eq!(i2.i, i1.i);
         assert_eq!(buf.remaining(), 0);
@@ -486,6 +520,7 @@ mod test {
         let i1 = MqttVariableBytesInt::new(0x4000).unwrap();
         i1.serialize(&mut buf).unwrap();
         assert_eq!(&buf[..], [0x80, 0x80, 0x01]);
+        assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
         assert_eq!(i2.i, i1.i);
         assert_eq!(buf.remaining(), 0);
@@ -497,6 +532,7 @@ mod test {
         let i1 = MqttVariableBytesInt::new(0x1fffff).unwrap();
         i1.serialize(&mut buf).unwrap();
         assert_eq!(&buf[..], [0xff, 0xff, 0x7f]);
+        assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
         assert_eq!(i2.i, i1.i);
         assert_eq!(buf.remaining(), 0);
@@ -508,6 +544,7 @@ mod test {
         let i1 = MqttVariableBytesInt::new(0x200000).unwrap();
         i1.serialize(&mut buf).unwrap();
         assert_eq!(&buf[..], [0x80, 0x80, 0x80, 0x01]);
+        assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
         assert_eq!(i2.i, i1.i);
         assert_eq!(buf.remaining(), 0);
@@ -519,6 +556,7 @@ mod test {
         let i1 = MqttVariableBytesInt::new(0xfffffff).unwrap();
         i1.serialize(&mut buf).unwrap();
         assert_eq!(&buf[..], [0xff, 0xff, 0xff, 0x7f]);
+        assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
         assert_eq!(i2.i, i1.i);
         assert_eq!(buf.remaining(), 0);
@@ -613,6 +651,7 @@ mod test {
             b,
             &[0x0, 0x5, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0, 0x5, 0x77, 0x6f, 0x72, 0x6c, 0x64][..]
         );
+        assert_eq!(b.remaining(), d1.size());
         let d2 = MqttUtf8StringPair::deserialize(&mut b).unwrap();
         assert_eq!(d1.name.inner(), d2.name.inner());
         assert_eq!(d1.value.inner(), d2.value.inner());

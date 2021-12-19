@@ -19,4 +19,5 @@ pub trait Parsable {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError>
     where
         Self: Sized;
+    fn size(&self) -> usize;
 }
