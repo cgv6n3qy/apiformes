@@ -4,6 +4,7 @@ pub mod packet_type;
 pub mod props;
 pub mod puback;
 pub mod publish;
+pub mod pubrec;
 pub mod qos;
 pub mod reason;
 pub mod topic;
