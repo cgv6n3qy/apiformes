@@ -6,6 +6,7 @@ pub enum DataParseError {
     BadMqttUtf8String,
     BadMqttVariableBytesInt,
     BadMqttBinaryData,
+    BadPacketType,
 }
 
 pub trait UncheckedParsable {
