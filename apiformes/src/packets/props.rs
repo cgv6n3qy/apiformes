@@ -307,13 +307,13 @@ impl Property {
                 false,
             ),
             Property::WildcardSubscriptionAvailable => {
-                (PropOwner::CONNACK, MqttPropValueType::Byte, false)
+                (PropOwner::CONNACK, MqttPropValueType::Bool, false)
             }
             Property::SubscriptionIdentifierAvailable => {
-                (PropOwner::CONNACK, MqttPropValueType::Byte, false)
+                (PropOwner::CONNACK, MqttPropValueType::Bool, false)
             }
             Property::SharedSubscriptionAvailable => {
-                (PropOwner::CONNACK, MqttPropValueType::Byte, false)
+                (PropOwner::CONNACK, MqttPropValueType::Bool, false)
             }
         }
     }
