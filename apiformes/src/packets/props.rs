@@ -5,7 +5,7 @@ use crate::data::{
 use crate::parsable::{DataParseError, Parsable};
 use bitflags::bitflags;
 use bytes::{Buf, BufMut};
-use std::collections::{hash_map::Iter, HashMap};
+use std::collections::HashMap;
 bitflags! {
     pub struct PropOwner: u16 {
         const AUTH =            0b0000_0000_0000_0001;
@@ -30,7 +30,7 @@ bitflags! {
 pub struct Properties {
     size: usize,
     valid: PropOwner,
-    props: HashMap<Property, MqttPropValue>,
+    props: HashMap<Property, Vec<MqttPropValue>>,
 }
 impl Default for Properties {
     fn default() -> Self {
@@ -46,19 +46,36 @@ impl Properties {
         }
     }
     pub fn insert(&mut self, key: Property, value: MqttPropValue) -> Result<(), DataParseError> {
-        let (filter, prop_type) = key.auxiliary_data();
+        let (filter, prop_type, multiple) = key.auxiliary_data();
         if value.prop_type() != prop_type {
             return Err(DataParseError::BadProperty);
         }
         self.valid &= filter;
-        self.unchecked_insert(key, value);
-        Ok(())
+        match self.unchecked_insert(key, value, multiple) {
+            Some(_) => Err(DataParseError::BadProperty),
+            None => Ok(()),
+        }
     }
-    fn unchecked_insert(&mut self, key: Property, value: MqttPropValue) {
+    fn unchecked_insert(
+        &mut self,
+        key: Property,
+        value: MqttPropValue,
+        multiple: bool,
+    ) -> Option<MqttPropValue> {
         self.size += value.size();
-        let old = self.props.insert(key, value);
-        if let Some(v) = old {
-            self.size -= v.size();
+        if multiple {
+            let old = self.props.get_mut(&key);
+            match old {
+                Some(old) => old.push(value),
+                None => drop(self.props.insert(key, vec![value])),
+            }
+            None
+        } else {
+            let old = self.props.insert(key, vec![value]);
+            if let Some(v) = old.as_ref() {
+                self.size -= v[0].size();
+            }
+            old.map(|mut v| v.remove(0))
         }
     }
     pub fn checked_insert(
@@ -67,22 +84,25 @@ impl Properties {
         value: MqttPropValue,
         ty: PropOwner,
     ) -> Result<(), DataParseError> {
-        let (filter, prop_type) = key.auxiliary_data();
+        let (filter, prop_type, multiple) = key.auxiliary_data();
         if !filter.contains(ty) || prop_type != value.prop_type() {
             return Err(DataParseError::BadProperty);
         }
         self.valid &= filter;
-        self.unchecked_insert(key, value);
+        self.unchecked_insert(key, value, multiple);
         Ok(())
     }
-    pub fn get(&self, key: Property) -> Option<&MqttPropValue> {
-        self.props.get(&key)
+    pub fn get(&self, key: Property) -> Option<&[MqttPropValue]> {
+        self.props.get(&key).map(|v| v.as_ref())
     }
     pub fn is_valid_for(&self, message: PropOwner) -> bool {
         self.valid & message == message
     }
-    pub fn iter(&self) -> Iter<'_, Property, MqttPropValue> {
-        self.props.iter()
+    pub fn iter(&self) -> impl Iterator<Item = (&Property, &MqttPropValue)> {
+        self.props
+            .iter()
+            .map(|(key, value_vec)| value_vec.iter().map(move |value| (key, value)))
+            .flatten()
     }
 }
 
@@ -101,7 +121,7 @@ impl Parsable for Properties {
         let mut table = Properties::new();
         while size != 0 {
             let key = Property::deserialize(buf)?;
-            let (_, ty) = key.auxiliary_data();
+            let (_, ty, _) = key.auxiliary_data();
             let value = MqttPropValue::deserialize(buf, ty)?;
             size -= key.size() + value.size();
             // the unwrap is justified here because we just checked that the
@@ -160,53 +180,76 @@ pub enum Property {
 }
 
 impl Property {
-    fn auxiliary_data(&self) -> (PropOwner, MqttPropValueType) {
+    // First value is who is the owner properties,
+    // second value is what value can be stored in there
+    // third value is if it is allowed to be stored multiple times
+    fn auxiliary_data(&self) -> (PropOwner, MqttPropValueType, bool) {
         match self {
             Property::PayloadFormatIndicator => (
                 PropOwner::PUBLISH | PropOwner::WILL,
                 MqttPropValueType::Byte,
+                false,
             ),
             Property::MessageExpiryInterval => (
                 PropOwner::PUBLISH | PropOwner::WILL,
                 MqttPropValueType::FourBytesInt,
+                false,
             ),
             Property::ContentType => (
                 PropOwner::PUBLISH | PropOwner::WILL,
                 MqttPropValueType::String,
+                false,
             ),
             Property::ResponseTopic => (
                 PropOwner::PUBLISH | PropOwner::WILL,
                 MqttPropValueType::String,
+                false,
             ),
             Property::CorrelationData => (
                 PropOwner::PUBLISH | PropOwner::WILL,
                 MqttPropValueType::Data,
+                false,
             ),
             Property::SubscriptionIdentifier => (
                 PropOwner::PUBLISH | PropOwner::SUBSCRIBE,
                 MqttPropValueType::VarInt,
+                false,
             ),
             Property::SessionExpiryInterval => (
                 PropOwner::CONNECT | PropOwner::CONNACK | PropOwner::DISCONNECT,
                 MqttPropValueType::FourBytesInt,
+                false,
             ),
-            Property::AssignedClientIdentifier => (PropOwner::CONNACK, MqttPropValueType::String),
-            Property::ServerKeepAlive => (PropOwner::CONNACK, MqttPropValueType::TwoBytesInt),
+            Property::AssignedClientIdentifier => {
+                (PropOwner::CONNACK, MqttPropValueType::String, false)
+            }
+            Property::ServerKeepAlive => {
+                (PropOwner::CONNACK, MqttPropValueType::TwoBytesInt, false)
+            }
             Property::AuthenticationMethod => (
                 PropOwner::CONNECT | PropOwner::CONNACK | PropOwner::AUTH,
                 MqttPropValueType::String,
+                false,
             ),
             Property::AuthenticationData => (
                 PropOwner::CONNECT | PropOwner::CONNACK | PropOwner::AUTH,
                 MqttPropValueType::Data,
+                false,
             ),
-            Property::RequestProblemInformation => (PropOwner::CONNECT, MqttPropValueType::Byte),
-            Property::WillDelayInterval => (PropOwner::WILL, MqttPropValueType::FourBytesInt),
-            Property::RequestResponseInformation => (PropOwner::CONNECT, MqttPropValueType::Byte),
-            Property::ResponseInformation => (PropOwner::CONNACK, MqttPropValueType::String),
+            Property::RequestProblemInformation => {
+                (PropOwner::CONNECT, MqttPropValueType::Byte, false)
+            }
+            Property::WillDelayInterval => {
+                (PropOwner::WILL, MqttPropValueType::FourBytesInt, false)
+            }
+            Property::RequestResponseInformation => {
+                (PropOwner::CONNECT, MqttPropValueType::Byte, false)
+            }
+            Property::ResponseInformation => (PropOwner::CONNACK, MqttPropValueType::String, false),
             Property::ServerReference => (
                 PropOwner::CONNACK | PropOwner::DISCONNECT,
                 MqttPropValueType::String,
+                false,
             ),
             Property::ReasonString => (
                 PropOwner::CONNACK
@@ -219,18 +262,21 @@ impl Property {
                     | PropOwner::DISCONNECT
                     | PropOwner::AUTH,
                 MqttPropValueType::String,
+                false,
             ),
             Property::ReceiveMaximum => (
                 PropOwner::CONNECT | PropOwner::CONNACK,
                 MqttPropValueType::TwoBytesInt,
+                false,
             ),
             Property::TopicAliasMaximum => (
                 PropOwner::CONNECT | PropOwner::CONNACK,
                 MqttPropValueType::TwoBytesInt,
+                false,
             ),
-            Property::TopicAlias => (PropOwner::PUBLISH, MqttPropValueType::TwoBytesInt),
-            Property::MaximumQoS => (PropOwner::CONNACK, MqttPropValueType::Byte),
-            Property::RetainAvailable => (PropOwner::CONNACK, MqttPropValueType::Byte),
+            Property::TopicAlias => (PropOwner::PUBLISH, MqttPropValueType::TwoBytesInt, false),
+            Property::MaximumQoS => (PropOwner::CONNACK, MqttPropValueType::Byte, false),
+            Property::RetainAvailable => (PropOwner::CONNACK, MqttPropValueType::Byte, false),
             Property::UserProperty => (
                 PropOwner::CONNECT
                     | PropOwner::CONNACK
@@ -247,18 +293,22 @@ impl Property {
                     | PropOwner::DISCONNECT
                     | PropOwner::AUTH,
                 MqttPropValueType::String,
+                true,
             ),
             Property::MaximumPacketSize => (
                 PropOwner::CONNECT | PropOwner::CONNACK,
                 MqttPropValueType::FourBytesInt,
+                false,
             ),
             Property::WildcardSubscriptionAvailable => {
-                (PropOwner::CONNACK, MqttPropValueType::Byte)
+                (PropOwner::CONNACK, MqttPropValueType::Byte, false)
             }
             Property::SubscriptionIdentifierAvailable => {
-                (PropOwner::CONNACK, MqttPropValueType::Byte)
+                (PropOwner::CONNACK, MqttPropValueType::Byte, false)
             }
-            Property::SharedSubscriptionAvailable => (PropOwner::CONNACK, MqttPropValueType::Byte),
+            Property::SharedSubscriptionAvailable => {
+                (PropOwner::CONNACK, MqttPropValueType::Byte, false)
+            }
         }
     }
 }
