@@ -3,6 +3,7 @@ pub mod connect;
 pub mod packet_type;
 pub mod props;
 pub mod puback;
+pub mod pubcomp;
 pub mod publish;
 pub mod pubrec;
 pub mod pubrel;
