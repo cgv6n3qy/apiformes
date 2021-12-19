@@ -1,3 +1,4 @@
+pub mod auth;
 pub mod connack;
 pub mod connect;
 pub mod disconnect;
