@@ -114,7 +114,7 @@ fn connect_client(
     queue: UnboundedSender<Client>,
     shutdown: Arc<Notify>,
 ) {
-    tokio::spawn(async move { _connect_client(client, saddr, queue, shutdown) });
+    tokio::spawn(async move { _connect_client(client, saddr, queue, shutdown).await });
 }
 
 enum ConnectState {
