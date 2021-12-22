@@ -6,11 +6,11 @@ pub mod error;
 use client::{Client, MqttListener};
 pub use config::MqttServerConfig;
 use error::ServerError;
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 use tokio::{
     net::TcpListener,
     sync::{
-        mpsc::{unbounded_channel, UnboundedReceiver},
+        mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
         Notify,
     },
     task::JoinHandle,
@@ -32,19 +32,13 @@ impl MqttServer {
         let mut workers = Vec::new();
         let cfg = Arc::new(cfg);
         if let Some(saddr) = cfg.mqtt_socketaddr {
-            let listener = TcpListener::bind(saddr).await?;
-            let tx2 = tx.clone();
-            let shutdown2 = shutdown.clone();
-            let cfg2 = cfg.clone();
-            info!(
-                SocketAddr = &*format!("{}", saddr),
-                "Starting MQTT listener"
-            );
-            let handle = tokio::spawn(async move {
-                MqttListener::new(listener, tx2, shutdown2, cfg2)
-                    .run()
-                    .await
-            });
+            let handle = MqttServer::incomming_mqtt_listener(
+                &saddr,
+                tx.clone(),
+                shutdown.clone(),
+                cfg.clone(),
+            )
+            .await?;
             workers.push(handle)
         };
         Ok(MqttServer {
@@ -54,6 +48,24 @@ impl MqttServer {
             cfg,
         })
     }
+
+    async fn incomming_mqtt_listener(
+        saddr: &SocketAddr,
+        tx: UnboundedSender<Client>,
+        shutdown: Arc<Notify>,
+        cfg: Arc<MqttServerConfig>,
+    ) -> Result<JoinHandle<()>, ServerError> {
+        let listener = TcpListener::bind(saddr).await?;
+        info!(
+            SocketAddr = &*format!("{}", saddr),
+            "Starting Listener for incoming unencrypted connections"
+        );
+
+        Ok(tokio::spawn(async move {
+            MqttListener::new(listener, tx, shutdown, cfg).run().await
+        }))
+    }
+
     #[instrument(skip(self))]
     pub async fn shutdown(self) {
         // TODO keep track of https://github.com/tokio-rs/tokio/issues/3903
