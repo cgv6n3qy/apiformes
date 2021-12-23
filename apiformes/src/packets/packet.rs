@@ -158,6 +158,12 @@ impl Parsable for Packet {
         Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+        if buf.remaining() < 3 {
+            return Err(DataParseError::InsufficientBuffer {
+                needed: 3,
+                available: buf.remaining(),
+            });
+        }
         let byte1 = buf.get_u8();
         let packet_type = PacketType::parse(byte1)?;
         match packet_type {
