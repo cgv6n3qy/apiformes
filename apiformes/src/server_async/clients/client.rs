@@ -1,12 +1,12 @@
 #[derive(Clone)]
 pub struct Client {
-    pub session_expirary: u32,
-    pub recv_max: u16,
-    pub max_packet_size: u32,
-    pub topic_alias_max: u16,
-    pub response_info: bool,
-    pub problem_info: bool,
-    pub clientid: String,
+    pub(super) session_expirary: u32,
+    pub(super) recv_max: u16,
+    pub(super) max_packet_size: u32,
+    pub(super) topic_alias_max: u16,
+    pub(super) response_info: bool,
+    pub(super) problem_info: bool,
+    pub(super) clientid: String,
 }
 
 impl Client {
