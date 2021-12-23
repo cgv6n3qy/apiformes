@@ -16,7 +16,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{error, info, instrument};
+use tracing::{warn, info, instrument};
 
 pub struct ClientManager {
     rx: UnboundedReceiver<ClientWorker>,
@@ -70,7 +70,7 @@ impl ClientManager {
             let worker = match self.rx.recv().await {
                 Some(worker) => worker,
                 None => {
-                    error!("All ClientWorker Tx halves has been dropped which is means an internal bug,");
+                    warn!("All ClientWorker Tx halves has been dropped which is means server is shutting down or this is an internal bug,");
                     return;
                 }
             };
