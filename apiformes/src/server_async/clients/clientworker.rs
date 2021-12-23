@@ -1,42 +1,32 @@
-mod mqttclient;
-
-pub use mqttclient::MqttListener;
-
+use super::{mqttclient::MqttClient, Client};
 use crate::packets::prelude::*;
 use crate::server_async::{cfg::*, config::MqttServerConfig, error::ServerError};
-use mqttclient::MqttClient;
 use std::sync::Arc;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
-enum Connection {
+pub(super) enum Connection {
     Mqtt(MqttClient),
 }
 
-pub struct Client {
+pub(super) struct ClientWorker {
     conn: Connection,
     cfg: Arc<MqttServerConfig>,
-    pub session_expirary: u32,
-    pub recv_max: u16,
-    pub max_packet_size: u32,
-    pub topic_alias_max: u16,
-    pub response_info: bool,
-    pub problem_info: bool,
-    pub clientid: String,
+    internals: Client,
 }
 
-impl Client {
-    pub(self) fn new(c: Connection, cfg: Arc<MqttServerConfig>) -> Self {
-        Client {
+impl ClientWorker {
+    pub(super) fn internals(&self) -> &Client {
+        &self.internals
+    }
+    pub(super) fn cfg(&self) -> Arc<MqttServerConfig> {
+        self.cfg.clone()
+    }
+    pub(super) fn new(c: Connection, cfg: Arc<MqttServerConfig>) -> Self {
+        ClientWorker {
             conn: c,
             cfg,
-            session_expirary: 0,
-            recv_max: u16::MAX,
-            max_packet_size: u32::MAX,
-            topic_alias_max: 0,
-            response_info: false,
-            problem_info: true,
-            clientid: String::new(),
+            internals: Client::new(),
         }
     }
     pub async fn recv(&mut self) -> Result<Packet, ServerError> {
@@ -55,7 +45,7 @@ impl Client {
         self.send(&connack.build()).await?;
         Err(ServerError::Misc("Unimplemented".to_owned()))
     }
-    #[instrument(skip(self, connect))]
+    #[instrument(name = "ClientWorker::process_connect", skip_all)]
     async fn process_connect(&mut self, connect: Connect) -> Result<(), ServerError> {
         if connect.username().is_some() {
             error!("Client attempted using username for authentication which is not supported");
@@ -75,12 +65,22 @@ impl Client {
         }
         for (k, v) in connect.props_iter() {
             match k {
-                Property::SessionExpiryInterval => self.session_expirary = v.into_u32().unwrap(),
-                Property::ReceiveMaximum => self.recv_max = v.into_u16().unwrap(),
-                Property::MaximumPacketSize => self.max_packet_size = v.into_u32().unwrap(),
-                Property::TopicAliasMaximum => self.topic_alias_max = v.into_u16().unwrap(),
-                Property::RequestResponseInformation => self.response_info = v.into_bool().unwrap(),
-                Property::RequestProblemInformation => self.problem_info = v.into_bool().unwrap(),
+                Property::SessionExpiryInterval => {
+                    self.internals.session_expirary = v.into_u32().unwrap()
+                }
+                Property::ReceiveMaximum => self.internals.recv_max = v.into_u16().unwrap(),
+                Property::MaximumPacketSize => {
+                    self.internals.max_packet_size = v.into_u32().unwrap()
+                }
+                Property::TopicAliasMaximum => {
+                    self.internals.topic_alias_max = v.into_u16().unwrap()
+                }
+                Property::RequestResponseInformation => {
+                    self.internals.response_info = v.into_bool().unwrap()
+                }
+                Property::RequestProblemInformation => {
+                    self.internals.problem_info = v.into_bool().unwrap()
+                }
                 Property::UserProperty => warn!(
                     "Client is using strange property in connect packet {:?}",
                     v.into_str_pair().unwrap()
@@ -111,19 +111,13 @@ impl Client {
         connack
             .add_prop(
                 Property::SessionExpiryInterval,
-                MqttPropValue::new_u32(self.session_expirary),
+                MqttPropValue::new_u32(self.internals.session_expirary),
             )
             .unwrap();
         connack
             .add_prop(
                 Property::ReceiveMaximum,
-                MqttPropValue::new_u16(self.recv_max),
-            )
-            .unwrap();
-        connack
-            .add_prop(
-                Property::ReceiveMaximum,
-                MqttPropValue::new_u16(self.recv_max),
+                MqttPropValue::new_u16(self.internals.recv_max),
             )
             .unwrap();
         connack
@@ -131,16 +125,16 @@ impl Client {
             .unwrap();
         match connect.clientid() {
             "" => {
-                self.clientid = Uuid::new_v4().to_hyphenated().to_string();
-                info!("Assigning {} to client", self.clientid);
+                self.internals.clientid = Uuid::new_v4().to_hyphenated().to_string();
+                info!("Assigning {} to client", self.internals.clientid);
                 connack
                     .add_prop(
                         Property::AssignedClientIdentifier,
-                        MqttPropValue::new_string(&self.clientid).unwrap(),
+                        MqttPropValue::new_string(&self.internals.clientid).unwrap(),
                     )
                     .unwrap();
             }
-            x => self.clientid = x.to_string(),
+            x => self.internals.clientid = x.to_string(),
         }
         connack
             .add_prop(

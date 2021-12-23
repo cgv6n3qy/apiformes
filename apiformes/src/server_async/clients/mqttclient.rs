@@ -1,4 +1,4 @@
-use super::{Client, Connection};
+use super::clientworker::{ClientWorker, Connection};
 use crate::packets::prelude::*;
 use crate::server_async::{config::MqttServerConfig, error::ServerError};
 use bytes::{Buf, BytesMut};
@@ -19,7 +19,7 @@ pub struct MqttClient {
 
 impl fmt::Debug for MqttClient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "MqttClient({:?})", self.saddr)
+        write!(f, "MqttWorkerClient({:?})", self.saddr)
     }
 }
 
@@ -60,15 +60,15 @@ impl MqttClient {
 
 pub struct MqttListener {
     mqtt_listener: TcpListener,
-    queue: UnboundedSender<Client>,
+    queue: UnboundedSender<ClientWorker>,
     shutdown: Arc<Notify>,
     cfg: Arc<MqttServerConfig>,
 }
 
 impl MqttListener {
-    pub fn new(
+    pub(super) fn new(
         listener: TcpListener,
-        queue: UnboundedSender<Client>,
+        queue: UnboundedSender<ClientWorker>,
         shutdown: Arc<Notify>,
         cfg: Arc<MqttServerConfig>,
     ) -> MqttListener {
@@ -82,16 +82,11 @@ impl MqttListener {
     async fn listen(&mut self) -> Result<(), ServerError> {
         let (stream, saddr) = self.mqtt_listener.accept().await?;
         let connection = Connection::Mqtt(MqttClient::new(stream, saddr));
-        let client = Client::new(connection, self.cfg.clone());
-        connect_client(
-            client,
-            saddr.clone(),
-            self.queue.clone(),
-            self.shutdown.clone(),
-        );
+        let client = ClientWorker::new(connection, self.cfg.clone());
+        connect_client(client, saddr, self.queue.clone(), self.shutdown.clone());
         Ok(())
     }
-    #[instrument(skip(self))]
+    #[instrument(name = "MqttListener::listen_forever", skip_all)]
     async fn listen_forever(&mut self) -> ! {
         loop {
             if let Err(e) = self.listen().await {
@@ -99,19 +94,21 @@ impl MqttListener {
             }
         }
     }
+    #[instrument(name = "MqttListener::run", skip_all)]
     pub async fn run(mut self) {
         let shutdown = self.shutdown.clone();
         tokio::select! {
             _ = shutdown.notified() => (),
             _ = self.listen_forever() => ()
         };
+        info!("shutting down");
     }
 }
 
 fn connect_client(
-    client: Client,
+    client: ClientWorker,
     saddr: SocketAddr,
-    queue: UnboundedSender<Client>,
+    queue: UnboundedSender<ClientWorker>,
     shutdown: Arc<Notify>,
 ) {
     tokio::spawn(async move { _connect_client(client, saddr, queue, shutdown).await });
@@ -133,12 +130,12 @@ impl From<Result<(), ServerError>> for ConnectState {
 }
 
 async fn _connect_client(
-    mut client: Client,
+    mut client: ClientWorker,
     saddr: SocketAddr,
-    queue: UnboundedSender<Client>,
+    queue: UnboundedSender<ClientWorker>,
     shutdown: Arc<Notify>,
 ) {
-    let keep_alive = client.cfg.keep_alive as u64;
+    let keep_alive = client.cfg().keep_alive as u64;
 
     let state = tokio::select! {
         _ = shutdown.notified() => ConnectState::ShuttingDown,
