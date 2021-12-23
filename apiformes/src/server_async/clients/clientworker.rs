@@ -43,7 +43,7 @@ impl ClientWorker {
                     map_err(|_| ServerError::Misc("Error sending incoming packet to processing queue".to_owned()))?;
             }
             p = self.outgoing.recv() => {
-                let packet = p.map(Ok).unwrap_or(Err(ServerError::Misc("outgoing queue lost all its senders".to_owned())))?;
+                let packet = p.map(Ok).unwrap_or_else(|| Err(ServerError::Misc("outgoing queue lost all its senders".to_owned())))?;
                 self.conn.send(&packet).await?;
             }
         }
