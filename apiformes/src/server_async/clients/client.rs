@@ -1,7 +1,7 @@
 use crate::packets::prelude::Packet;
+use crate::server_async::ServerError;
 use std::sync::Arc;
 use tokio::sync::{mpsc::UnboundedSender, Notify};
-
 #[derive(Clone)]
 pub struct Client {
     pub(super) session_expirary: u32,
@@ -42,7 +42,9 @@ impl Client {
         self.killme.notify_one();
     }
 
-    pub fn send(&self, packet: Packet) {
-        self.outgoing.send(packet);
+    pub fn send(&self, packet: Packet) -> Result<(), ServerError> {
+        self.outgoing
+            .send(packet)
+            .map_err(|_| ServerError::Misc("outgoing channel is closed".to_owned()))
     }
 }
