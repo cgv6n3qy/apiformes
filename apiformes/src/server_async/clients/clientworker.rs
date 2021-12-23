@@ -4,6 +4,7 @@ use crate::server_async::{cfg::*, config::MqttServerConfig, error::ServerError};
 use std::sync::Arc;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
+use tokio::sync::Notify;
 
 pub(super) enum Connection {
     Mqtt(MqttClient),
@@ -22,11 +23,11 @@ impl ClientWorker {
     pub(super) fn cfg(&self) -> Arc<MqttServerConfig> {
         self.cfg.clone()
     }
-    pub(super) fn new(c: Connection, cfg: Arc<MqttServerConfig>) -> Self {
+    pub(super) fn new(c: Connection, cfg: Arc<MqttServerConfig>, shutdown: Arc<Notify>) -> Self {
         ClientWorker {
             conn: c,
             cfg,
-            internals: Client::new(),
+            internals: Client::new(shutdown),
         }
     }
     pub async fn recv(&mut self) -> Result<Packet, ServerError> {

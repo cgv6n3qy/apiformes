@@ -82,7 +82,7 @@ impl MqttListener {
     async fn listen(&mut self) -> Result<(), ServerError> {
         let (stream, saddr) = self.mqtt_listener.accept().await?;
         let connection = Connection::Mqtt(MqttClient::new(stream, saddr));
-        let client = ClientWorker::new(connection, self.cfg.clone());
+        let client = ClientWorker::new(connection, self.cfg.clone(), self.shutdown.clone());
         connect_client(client, saddr, self.queue.clone(), self.shutdown.clone());
         Ok(())
     }
