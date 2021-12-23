@@ -12,6 +12,8 @@ pub struct Client {
     pub(super) clientid: String,
     //global server shutdown
     shutdown: Arc<Notify>,
+    // local shutdown signal
+    pub(super) killme: Arc<Notify>,
 }
 
 impl Client {
@@ -25,10 +27,15 @@ impl Client {
             problem_info: true,
             clientid: String::new(),
             shutdown,
+            killme: Arc::new(Notify::new()),
         }
     }
 
     pub fn shutdown(self) {
         self.shutdown.notify_one();
+    }
+
+    pub fn killme(self) {
+        self.killme.notify_one();
     }
 }
