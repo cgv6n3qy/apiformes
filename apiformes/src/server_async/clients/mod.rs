@@ -1,11 +1,11 @@
 mod client;
 mod clientworker;
 mod mqttclient;
+use crate::packets::prelude::Packet;
+use crate::server_async::{config::MqttServerConfig, error::ServerError};
 pub use client::Client;
 use clientworker::ClientWorker;
 pub use mqttclient::MqttListener;
-
-use crate::server_async::{config::MqttServerConfig, error::ServerError};
 use std::collections::HashMap;
 use std::{net::SocketAddr, sync::Arc};
 use tokio::{
@@ -16,7 +16,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{warn, info, instrument};
+use tracing::{info, instrument, warn};
 
 pub struct ClientManager {
     rx: UnboundedReceiver<ClientWorker>,
@@ -44,6 +44,7 @@ impl ClientManager {
         cfg: Arc<MqttServerConfig>,
         clients: Arc<RwLock<HashMap<String, Client>>>,
         shutdown: Arc<Notify>,
+        incoming: UnboundedSender<(String, Packet)>,
     ) -> Result<Vec<JoinHandle<()>>, ServerError> {
         let (tx, rx) = unbounded_channel();
 
@@ -54,6 +55,7 @@ impl ClientManager {
                 tx.clone(),
                 shutdown.clone(),
                 cfg.clone(),
+                incoming,
             )
             .await?;
             workers.push(handle)
@@ -79,8 +81,8 @@ impl ClientManager {
                 .write()
                 .await
                 .insert(client.clientid.to_owned(), client.clone());
-            //TODO 1 handle clients takeover
-            //TODO 2 spawn worker
+            //TODO handle clients takeover
+            tokio::spawn(async move { worker.run().await });
         }
     }
     async fn run(self) {
@@ -99,6 +101,7 @@ impl ClientManager {
         tx: UnboundedSender<ClientWorker>,
         shutdown: Arc<Notify>,
         cfg: Arc<MqttServerConfig>,
+        incoming: UnboundedSender<(String, Packet)>,
     ) -> Result<JoinHandle<()>, ServerError> {
         let listener = TcpListener::bind(saddr).await?;
         info!(
@@ -107,7 +110,9 @@ impl ClientManager {
         );
 
         Ok(tokio::spawn(async move {
-            MqttListener::new(listener, tx, shutdown, cfg).run().await
+            MqttListener::new(listener, tx, shutdown, cfg, incoming)
+                .run()
+                .await
         }))
     }
 }

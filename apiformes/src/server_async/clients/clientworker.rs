@@ -2,48 +2,101 @@ use super::{mqttclient::MqttClient, Client};
 use crate::packets::prelude::*;
 use crate::server_async::{cfg::*, config::MqttServerConfig, error::ServerError};
 use std::sync::Arc;
+use tokio::sync::{
+    mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    Notify,
+};
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
-use tokio::sync::Notify;
 
 pub(super) enum Connection {
     Mqtt(MqttClient),
 }
 
+impl Connection {
+    pub async fn recv(&mut self) -> Result<Packet, ServerError> {
+        match self {
+            Connection::Mqtt(c) => c.recv().await,
+        }
+    }
+    pub async fn send(&mut self, p: &Packet) -> Result<(), ServerError> {
+        match self {
+            Connection::Mqtt(c) => c.send(p).await,
+        }
+    }
+}
+
 pub(super) struct ClientWorker {
+    incoming: UnboundedSender<(String, Packet)>,
+    outgoing: UnboundedReceiver<Packet>,
     conn: Connection,
     cfg: Arc<MqttServerConfig>,
     internals: Client,
 }
 
 impl ClientWorker {
+    async fn listen(&mut self) -> Result<(), ServerError> {
+        tokio::select! {
+            p = self.conn.recv() => {
+                let packet = p?;
+                self.incoming.send((self.internals.clientid.clone(), packet)).
+                    map_err(|_| ServerError::Misc("Error sending incoming packet to processing queue".to_owned()))?;
+            }
+            p = self.outgoing.recv() => {
+                let packet = p.map(Ok).unwrap_or(Err(ServerError::Misc("outgoing queue lost all its senders".to_owned())))?;
+                self.conn.send(&packet).await?;
+            }
+        }
+        Ok(())
+    }
+    async fn listen_forever(mut self) {
+        loop {
+            if let Err(e) = self.listen().await {
+                error!(
+                    clientid = &*self.internals.clientid,
+                    "Received error while listening, {:?}", e
+                );
+                break;
+            }
+        }
+    }
+    #[instrument(name = "ClientWorker::run", skip_all)]
+    pub(super) async fn run(self) {
+        let shutdown = self.internals.shutdown.clone();
+        let killme = self.internals.killme.clone();
+        tokio::select! {
+            _ = killme.notified() => (),
+            _ = shutdown.notified() => (),
+            _ = self.listen_forever() => (),
+        }
+    }
+
     pub(super) fn internals(&self) -> &Client {
         &self.internals
     }
     pub(super) fn cfg(&self) -> Arc<MqttServerConfig> {
         self.cfg.clone()
     }
-    pub(super) fn new(c: Connection, cfg: Arc<MqttServerConfig>, shutdown: Arc<Notify>) -> Self {
+    pub(super) fn new(
+        c: Connection,
+        cfg: Arc<MqttServerConfig>,
+        shutdown: Arc<Notify>,
+        incoming: UnboundedSender<(String, Packet)>,
+    ) -> Self {
+        let (outgoing_tx, outgoing_rx) = unbounded_channel();
         ClientWorker {
+            incoming,
+            outgoing: outgoing_rx,
             conn: c,
             cfg,
-            internals: Client::new(shutdown),
+            internals: Client::new(shutdown, outgoing_tx),
         }
     }
-    pub async fn recv(&mut self) -> Result<Packet, ServerError> {
-        match &mut self.conn {
-            Connection::Mqtt(c) => c.recv().await,
-        }
-    }
-    pub async fn send(&mut self, p: &Packet) -> Result<(), ServerError> {
-        match &mut self.conn {
-            Connection::Mqtt(c) => c.send(p).await,
-        }
-    }
+
     async fn unimplemented(&mut self) -> Result<(), ServerError> {
         let mut connack = ConnAck::new();
         connack.set_reason_code(ConnAckReasonCode::ImplementationSpecificError);
-        self.send(&connack.build()).await?;
+        self.conn.send(&connack.build()).await?;
         Err(ServerError::Misc("Unimplemented".to_owned()))
     }
     #[instrument(name = "ClientWorker::process_connect", skip_all)]
@@ -167,10 +220,10 @@ impl ClientWorker {
                 MqttPropValue::new_u16(self.cfg.keep_alive),
             )
             .unwrap();
-        self.send(&connack.build()).await
+        self.conn.send(&connack.build()).await
     }
     pub async fn connect(&mut self) -> Result<(), ServerError> {
-        match self.recv().await? {
+        match self.conn.recv().await? {
             Packet::Connect(c) => self.process_connect(c).await,
             _ => Err(ServerError::FirstPacketNotConnect),
         }

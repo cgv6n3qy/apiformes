@@ -63,6 +63,7 @@ pub struct MqttListener {
     queue: UnboundedSender<ClientWorker>,
     shutdown: Arc<Notify>,
     cfg: Arc<MqttServerConfig>,
+    incoming: UnboundedSender<(String, Packet)>,
 }
 
 impl MqttListener {
@@ -71,18 +72,25 @@ impl MqttListener {
         queue: UnboundedSender<ClientWorker>,
         shutdown: Arc<Notify>,
         cfg: Arc<MqttServerConfig>,
+        incoming: UnboundedSender<(String, Packet)>,
     ) -> MqttListener {
         MqttListener {
             mqtt_listener: listener,
             queue,
             shutdown,
             cfg,
+            incoming,
         }
     }
     async fn listen(&mut self) -> Result<(), ServerError> {
         let (stream, saddr) = self.mqtt_listener.accept().await?;
         let connection = Connection::Mqtt(MqttClient::new(stream, saddr));
-        let client = ClientWorker::new(connection, self.cfg.clone(), self.shutdown.clone());
+        let client = ClientWorker::new(
+            connection,
+            self.cfg.clone(),
+            self.shutdown.clone(),
+            self.incoming.clone(),
+        );
         connect_client(client, saddr, self.queue.clone(), self.shutdown.clone());
         Ok(())
     }

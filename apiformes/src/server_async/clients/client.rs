@@ -1,5 +1,6 @@
+use crate::packets::prelude::Packet;
 use std::sync::Arc;
-use tokio::sync::Notify;
+use tokio::sync::{mpsc::UnboundedSender, Notify};
 
 #[derive(Clone)]
 pub struct Client {
@@ -11,13 +12,14 @@ pub struct Client {
     pub(super) problem_info: bool,
     pub(super) clientid: String,
     //global server shutdown
-    shutdown: Arc<Notify>,
+    pub(super) shutdown: Arc<Notify>,
     // local shutdown signal
     pub(super) killme: Arc<Notify>,
+    outgoing: UnboundedSender<Packet>,
 }
 
 impl Client {
-    pub(super) fn new(shutdown: Arc<Notify>) -> Self {
+    pub(super) fn new(shutdown: Arc<Notify>, outgoing: UnboundedSender<Packet>) -> Self {
         Client {
             session_expirary: 0,
             recv_max: u16::MAX,
@@ -28,6 +30,7 @@ impl Client {
             clientid: String::new(),
             shutdown,
             killme: Arc::new(Notify::new()),
+            outgoing,
         }
     }
 
@@ -37,5 +40,9 @@ impl Client {
 
     pub fn killme(self) {
         self.killme.notify_one();
+    }
+
+    pub fn send(&self, packet: Packet) {
+        self.outgoing.send(packet);
     }
 }

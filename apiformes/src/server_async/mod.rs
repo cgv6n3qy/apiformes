@@ -8,7 +8,7 @@ pub use config::MqttServerConfig;
 use error::ServerError;
 use std::{collections::HashMap, sync::Arc};
 use tokio::{
-    sync::{Notify, RwLock},
+    sync::{mpsc::unbounded_channel, Notify, RwLock},
     task::JoinHandle,
 };
 use tracing::{error, info, instrument};
@@ -23,10 +23,13 @@ pub struct MqttServer {
 impl MqttServer {
     #[instrument(name = "MqttServer::new", skip(cfg))]
     pub async fn new(cfg: MqttServerConfig) -> Result<Self, ServerError> {
+        let (incoming_tx, incoming_rx) = unbounded_channel();
         let shutdown = Arc::new(Notify::new());
         let cfg = Arc::new(cfg);
         let clients = Arc::new(RwLock::new(HashMap::new()));
-        let workers = ClientManager::start(cfg.clone(), clients.clone(), shutdown.clone()).await?;
+        let workers =
+            ClientManager::start(cfg.clone(), clients.clone(), shutdown.clone(), incoming_tx)
+                .await?;
         Ok(MqttServer {
             clients,
             shutdown,
