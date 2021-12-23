@@ -1,7 +1,9 @@
 mod cfg;
 pub mod clients;
 mod config;
+mod dispatcher;
 pub mod error;
+mod topics;
 
 use clients::{Client, ClientManager};
 pub use config::MqttServerConfig;
@@ -11,6 +13,9 @@ use tokio::{
     sync::{mpsc::unbounded_channel, Notify, RwLock},
     task::JoinHandle,
 };
+use topics::Topics;
+
+use dispatcher::Dispatcher;
 use tracing::{error, info, instrument};
 
 pub struct MqttServer {
@@ -18,6 +23,7 @@ pub struct MqttServer {
     shutdown: Arc<Notify>,
     workers: Vec<JoinHandle<()>>,
     cfg: Arc<MqttServerConfig>,
+    topics: Arc<RwLock<Topics>>,
 }
 
 impl MqttServer {
@@ -27,14 +33,24 @@ impl MqttServer {
         let shutdown = Arc::new(Notify::new());
         let cfg = Arc::new(cfg);
         let clients = Arc::new(RwLock::new(HashMap::new()));
-        let workers =
+        let mut workers =
             ClientManager::start(cfg.clone(), clients.clone(), shutdown.clone(), incoming_tx)
                 .await?;
+        let topics = Arc::new(RwLock::new(Topics::new()));
+        let dispatcher = Dispatcher::new(
+            topics.clone(),
+            cfg.clone(),
+            shutdown.clone(),
+            clients.clone(),
+            incoming_rx,
+        );
+        workers.push(dispatcher.spawn().await);
         Ok(MqttServer {
             clients,
             shutdown,
             workers,
             cfg,
+            topics,
         })
     }
 
@@ -48,5 +64,19 @@ impl MqttServer {
             };
         }
         info!("Shutting down");
+    }
+    pub fn get_topics(&self) -> &RwLock<Topics> {
+        &self.topics
+    }
+    pub async fn clients(&self) -> Vec<String> {
+        self.clients
+            .read()
+            .await
+            .keys()
+            .map(|x| x.to_owned())
+            .collect()
+    }
+    pub fn config(&self) -> &MqttServerConfig {
+        &self.cfg
     }
 }
