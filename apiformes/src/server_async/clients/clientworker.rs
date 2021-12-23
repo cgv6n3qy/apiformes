@@ -192,7 +192,7 @@ impl ClientWorker {
         }
         connack
             .add_prop(
-                Property::TopicAlias,
+                Property::TopicAliasMaximum,
                 MqttPropValue::new_u16(TOPIC_ALIAS_MAX),
             )
             .unwrap();
