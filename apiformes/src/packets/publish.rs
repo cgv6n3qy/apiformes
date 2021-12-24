@@ -100,6 +100,9 @@ impl Publish {
             })
         }
     }
+    pub fn topic_name(&self) -> &str {
+        &self.topic_name.inner()
+    }
     pub fn packet_identifier(&self) -> Option<u16> {
         self.packet_identifier.as_ref().map(|i| i.inner())
     }
