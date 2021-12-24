@@ -64,6 +64,7 @@ impl TryInto<QoS> for PublishFlags {
 }
 
 //TODO check flag is equivalent to good QoS
+#[derive(Clone)]
 pub struct Publish {
     // 2.1.3 Flags & 3.3.1 PUBLISH Fixed Header.
     // Note this is part of the fixed header and not serializable

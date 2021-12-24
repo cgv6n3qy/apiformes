@@ -20,6 +20,7 @@ use super::{
 };
 use bytes::{Buf, BufMut};
 
+#[derive(Clone)]
 pub enum Packet {
     Connect(Connect),
     ConnAck(ConnAck),

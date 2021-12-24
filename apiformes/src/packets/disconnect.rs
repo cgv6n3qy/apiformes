@@ -7,6 +7,7 @@ use super::{
 };
 use bytes::{Buf, BufMut};
 
+#[derive(Clone)]
 pub struct Disconnect {
     // 3.14.2.1 Disconnect Reason Code
     reason_code: DisconnectReasonCode,

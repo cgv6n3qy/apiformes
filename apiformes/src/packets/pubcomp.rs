@@ -8,6 +8,7 @@ use super::{
 
 use bytes::{Buf, BufMut};
 
+#[derive(Clone)]
 pub struct PubComp {
     // 2.2.1 Packet Identifier
     packet_identifier: MqttTwoBytesInt,

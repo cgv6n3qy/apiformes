@@ -7,6 +7,7 @@ use super::{
 };
 use bytes::{Buf, BufMut};
 
+#[derive(Clone)]
 pub struct Auth {
     // 3.14.2.1 Auth Reason Code
     reason_code: AuthReasonCode,

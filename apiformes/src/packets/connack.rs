@@ -27,6 +27,7 @@ impl Parsable for ConnAckFlags {
     }
 }
 
+#[derive(Clone)]
 pub struct ConnAck {
     // 3.2.2.1 Connect Acknowledge Flags
     flags: ConnAckFlags,

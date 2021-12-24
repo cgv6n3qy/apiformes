@@ -5,6 +5,7 @@ use super::{
 };
 use bytes::{Buf, BufMut};
 
+#[derive(Clone)]
 pub struct Ping {}
 impl Default for Ping {
     fn default() -> Self {

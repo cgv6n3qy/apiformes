@@ -29,6 +29,7 @@ bitflags! {
     }
 }
 
+#[derive(Clone)]
 pub struct Properties {
     size: usize,
     valid: PropOwner,

@@ -4,6 +4,7 @@ use super::{
 };
 use bytes::{Buf, BufMut};
 
+#[derive(Clone)]
 pub struct MqttTopic(MqttUtf8String);
 
 impl MqttTopic {

@@ -103,6 +103,7 @@ impl TryInto<QoS> for SubscriptionOptions {
     }
 }
 
+#[derive(Clone)]
 pub struct Subscribe {
     // 2.2.1 Packet Identifier
     packet_identifier: MqttTwoBytesInt,

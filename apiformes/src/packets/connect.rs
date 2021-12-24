@@ -78,6 +78,7 @@ impl TryInto<QoS> for ConnectFlags {
     }
 }
 
+#[derive(Clone)]
 pub struct Will {
     // 3.1.3.2 Will Properties
     props: Properties,
@@ -143,6 +144,7 @@ impl Parsable for Will {
 }
 
 // 3.1 CONNECT – Connection Request
+#[derive(Clone)]
 pub struct Connect {
     // 3.1.2.3 Connect Flags
     flags: ConnectFlags,
