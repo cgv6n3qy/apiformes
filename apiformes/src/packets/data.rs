@@ -5,6 +5,7 @@ use bytes::{Buf, BufMut, Bytes};
 #[cfg(feature = "debug")]
 use std::fmt;
 
+#[derive(Clone)]
 pub(super) struct MqttOneBytesInt(u8);
 impl MqttOneBytesInt {
     pub(super) fn new(i: u8) -> Self {
@@ -45,6 +46,7 @@ impl Parsable for MqttOneBytesInt {
 }
 
 /// 1.5.2 Two Byte Integer
+#[derive(Clone)]
 pub(super) struct MqttTwoBytesInt(u16);
 
 impl MqttTwoBytesInt {
@@ -94,6 +96,7 @@ impl fmt::Debug for MqttTwoBytesInt {
 }
 
 /// 1.5.3 Four Byte Integer
+#[derive(Clone)]
 pub(super) struct MqttFourBytesInt(u32);
 
 impl MqttFourBytesInt {
@@ -143,6 +146,7 @@ impl fmt::Debug for MqttFourBytesInt {
 }
 
 /// 1.5.4 UTF-8 Encoded String
+#[derive(Clone)]
 pub(super) struct MqttUtf8String {
     s: String,
 }
@@ -225,6 +229,7 @@ impl fmt::Debug for MqttUtf8String {
 }
 
 /// 1.5.5 Variable Byte Integer
+#[derive(Clone)]
 pub(super) struct MqttVariableBytesInt {
     i: u32,
 }
@@ -308,6 +313,7 @@ impl fmt::Debug for MqttVariableBytesInt {
 }
 
 /// 1.5.6 Binary Data
+#[derive(Clone)]
 pub(super) struct MqttBinaryData {
     d: Bytes,
 }
@@ -368,6 +374,7 @@ impl fmt::Debug for MqttBinaryData {
     }
 }
 
+#[derive(Clone)]
 pub(super) struct MqttUtf8StringPair {
     pub(super) name: MqttUtf8String,
     pub(super) value: MqttUtf8String,

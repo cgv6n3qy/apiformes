@@ -364,6 +364,7 @@ impl Parsable for Property {
     }
 }
 
+#[derive(Clone)]
 enum MqttPropValueInner {
     Bool(MqttOneBytesInt),
     Byte(MqttOneBytesInt),
@@ -375,6 +376,7 @@ enum MqttPropValueInner {
     TwoBytesInt(MqttTwoBytesInt),
 }
 
+#[derive(Clone)]
 pub struct MqttPropValue(MqttPropValueInner);
 impl MqttPropValue {
     pub fn into_bool(&self) -> Option<bool> {
