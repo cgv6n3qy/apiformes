@@ -121,6 +121,9 @@ impl Subscribe {
             topics: Vec::new(),
         }
     }
+    pub fn packet_identifier(&self) -> u16 {
+        self.packet_identifier.inner()
+    }
     pub fn topics_iter(&self) -> impl Iterator<Item = (&str, &SubscriptionOptions)> {
         self.topics.iter().map(|(k, v)| (k.inner(), v))
     }
