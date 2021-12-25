@@ -6,7 +6,7 @@ pub mod error;
 mod topics;
 
 use clients::{Client, ClientManager};
-pub use config::MqttServerConfig;
+pub use config::{MqttServerConfig, Permeability};
 use error::ServerError;
 use std::{collections::HashMap, sync::Arc};
 use tokio::{
