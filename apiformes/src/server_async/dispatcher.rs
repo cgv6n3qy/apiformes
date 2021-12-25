@@ -4,8 +4,9 @@ use tokio::task::JoinHandle;
 
 use crate::packets::prelude::*;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::sync::Arc;
-use tracing::{error, instrument, warn};
+use tracing::{error, instrument, trace, warn};
 
 pub struct Dispatcher {
     topics: Arc<RwLock<Topics>>,
@@ -35,13 +36,15 @@ impl Dispatcher {
         let disconnect = Disconnect::new(DisconnectReasonCode::ImplementationSpecificError).build();
         let clients = self.clients.read().await;
         let c = clients.get(client).unwrap();
-        if let Err(e) = c.send(disconnect) {
+        if let Err(_) = c.send(disconnect) {
             error!(clientid = client, "Internal Error: tx closed");
         }
         Err(ServerError::Misc("Unimplemented".to_owned()))
     }
 
+    #[instrument(skip_all)]
     async fn process_publish(&mut self, client: &str, publish: Publish) -> Result<(), ServerError> {
+        trace!("Processing a publish packet");
         match publish.qos() {
             QoS::QoS0 => (),
             QoS::QoS1 => return self.unimplemented(client).await,
@@ -84,21 +87,81 @@ impl Dispatcher {
         response.set_payload(publish.payload());
         let resp = response.build();
         if let Some(ids) = self.topics.read().await.get_subscribed(topic) {
+            trace!("Clients registers at {} are {:?}", topic, ids);
             let clients = self.clients.read().await;
             for id in ids {
                 if let Some(c) = clients.get(id) {
-                    if let Err(e) = c.send(resp.clone()) {
+                    if let Err(_) = c.send(resp.clone()) {
                         error!(clientid = id.as_str(), "Internal Error: tx closed");
-
                     };
                 }
             }
         }
         Ok(())
     }
+
+    #[instrument(skip_all)]
+    async fn process_subscribe(&mut self, client: &str, sub: Subscribe) -> Result<(), ServerError> {
+        trace!("Processing a subscribe packet");
+        let ident = sub.packet_identifier();
+        for (k, _) in sub.props_iter() {
+            match k {
+                Property::SubscriptionIdentifier => return self.unimplemented(client).await,
+                Property::UserProperty => {
+                    warn!(clientid = client, "Received unknown user property")
+                }
+                _ => error!(
+                    "Internal Error: {:?} should not be part of publish packet",
+                    k
+                ),
+            }
+        }
+        let mut suback = SubAck::new(ident);
+        // it is important to drop topics as soon as possible because this is
+        // write RAII
+        let mut topics = self.topics.write().await;
+        for (topic, options) in sub.topics_iter() {
+            let qos: QoS = options.clone().try_into()?;
+            match qos {
+                QoS::QoS0 => (),
+                _ => {
+                    suback.add_reason_code(SubAckReasonCode::ImplementationSpecificError);
+                    continue;
+                }
+            }
+            match options.clone().try_into()? {
+                RetainHandling::DoNotSend => (),
+                _ => {
+                    suback.add_reason_code(SubAckReasonCode::ImplementationSpecificError);
+                    continue;
+                }
+            }
+            if options.contains(SubscriptionOptions::NO_LOCAL) {
+                suback.add_reason_code(SubAckReasonCode::ImplementationSpecificError);
+            }
+            topics.subscribe(topic, client);
+            match qos {
+                QoS::QoS0 => suback.add_reason_code(SubAckReasonCode::GrantedQoS0),
+                QoS::QoS1 => suback.add_reason_code(SubAckReasonCode::GrantedQoS1),
+                QoS::QoS2 => suback.add_reason_code(SubAckReasonCode::GrantedQoS2),
+            }
+        }
+        let clients = self.clients.read().await;
+        if let Some(c) = clients.get(client) {
+            if let Err(_) = c.send(suback.build()) {
+                error!(clientid = client, "Internal Error: tx closed");
+            }
+        }
+        //this is important because we want more threads to have access to topics once we don't
+        //have to write to it
+        drop(topics);
+
+        Ok(())
+    }
     async fn process_packet(&mut self, client: &str, packet: Packet) -> Result<(), ServerError> {
         match packet {
             Packet::Publish(publish) => self.process_publish(&client, publish).await,
+            Packet::Subscribe(sub) => self.process_subscribe(&client, sub).await,
             _ => self.unimplemented(client).await,
         }
     }
