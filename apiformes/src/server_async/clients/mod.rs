@@ -1,11 +1,15 @@
 mod client;
 mod clientworker;
 mod mqttclient;
+#[cfg(feature = "noise")]
+mod noiseclient;
+
 use crate::packets::prelude::Packet;
 use crate::server_async::{config::MqttServerConfig, error::ServerError};
 pub use client::Client;
 use clientworker::ClientWorker;
 pub use mqttclient::MqttListener;
+pub use noiseclient::NoiseListener;
 use std::collections::HashMap;
 use std::{net::SocketAddr, sync::Arc};
 use tokio::{
@@ -51,6 +55,19 @@ impl ClientManager {
         let mut workers = Vec::new();
         if let Some(saddr) = cfg.mqtt_socketaddr {
             let handle = ClientManager::incomming_mqtt_listener(
+                &saddr,
+                tx.clone(),
+                shutdown.clone(),
+                cfg.clone(),
+                incoming.clone(),
+            )
+            .await?;
+            workers.push(handle)
+        }
+
+        #[cfg(feature = "noise")]
+        if let Some(saddr) = cfg.noise_socketaddr {
+            let handle = ClientManager::incomming_noise_listener(
                 &saddr,
                 tx.clone(),
                 shutdown.clone(),
@@ -111,6 +128,26 @@ impl ClientManager {
 
         Ok(tokio::spawn(async move {
             MqttListener::new(listener, tx, shutdown, cfg, incoming)
+                .run()
+                .await
+        }))
+    }
+
+    async fn incomming_noise_listener(
+        saddr: &SocketAddr,
+        tx: UnboundedSender<ClientWorker>,
+        shutdown: Arc<Notify>,
+        cfg: Arc<MqttServerConfig>,
+        incoming: UnboundedSender<(String, Packet)>,
+    ) -> Result<JoinHandle<()>, ServerError> {
+        let listener = TcpListener::bind(saddr).await?;
+        info!(
+            SocketAddr = &*format!("{}", saddr),
+            "Starting listener for incoming encrypted connections"
+        );
+
+        Ok(tokio::spawn(async move {
+            NoiseListener::new(listener, tx, shutdown, cfg, incoming)
                 .run()
                 .await
         }))

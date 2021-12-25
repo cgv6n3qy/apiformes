@@ -4,6 +4,10 @@ use std::io;
 pub enum ServerError {
     Io(io::Error),
     Packet(DataParseError),
+
+    #[cfg(feature = "noise")]
+    Noise(snow::Error),
+
     FirstPacketNotConnect,
     Misc(String),
 }
@@ -13,8 +17,16 @@ impl From<io::Error> for ServerError {
         ServerError::Io(err)
     }
 }
+
 impl From<DataParseError> for ServerError {
     fn from(err: DataParseError) -> ServerError {
         ServerError::Packet(err)
+    }
+}
+
+#[cfg(feature = "noise")]
+impl From<snow::Error> for ServerError {
+    fn from(err: snow::Error) -> ServerError {
+        ServerError::Noise(err)
     }
 }

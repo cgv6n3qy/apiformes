@@ -7,7 +7,7 @@ license = "MIT"
 [features]
 debug = []
 server_async = ["tokio", "tracing", "serde", "debug", "uuid"]
-noise = []
+noise = ["snow", "tokio-util", "futures"]
 default =[]
 
 [dependencies]
@@ -17,3 +17,6 @@ tokio = { version = "1", features = ["net", "io-util", "sync", "macros", "rt", "
 tracing = {version = "0.1", optional = true}
 serde = {version = "1", features = ["serde_derive"], optional=true}
 uuid = { version = "0.8", features = ["v4"], default-features = false, optional=true}
+snow = {version="0.8", optional=true}
+tokio-util = {version = "0.6", features=["codec"], optional = true}
+futures={version = "0.3", optional=true}

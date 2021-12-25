@@ -1,4 +1,4 @@
-use super::{mqttclient::MqttClient, Client};
+use super::{mqttclient::MqttClient, noiseclient::NoiseClient, Client};
 use crate::packets::prelude::*;
 use crate::server_async::{cfg::*, config::MqttServerConfig, error::ServerError};
 use std::sync::Arc;
@@ -11,17 +11,26 @@ use uuid::Uuid;
 
 pub(super) enum Connection {
     Mqtt(MqttClient),
+    Noise(NoiseClient),
 }
 
 impl Connection {
     pub async fn recv(&mut self) -> Result<Packet, ServerError> {
         match self {
             Connection::Mqtt(c) => c.recv().await,
+            Connection::Noise(n) => n.recv().await,
         }
     }
     pub async fn send(&mut self, p: &Packet) -> Result<(), ServerError> {
         match self {
             Connection::Mqtt(c) => c.send(p).await,
+            Connection::Noise(n) => n.send(p).await,
+        }
+    }
+    pub fn is_encrypted(&self) -> bool {
+        match self {
+            Connection::Mqtt(_) => false,
+            Connection::Noise(_) => true,
         }
     }
 }
@@ -85,11 +94,11 @@ impl ClientWorker {
     ) -> Self {
         let (outgoing_tx, outgoing_rx) = unbounded_channel();
         ClientWorker {
+            internals: Client::new(shutdown, outgoing_tx, c.is_encrypted()),
             incoming,
             outgoing: outgoing_rx,
             conn: c,
             cfg,
-            internals: Client::new(shutdown, outgoing_tx),
         }
     }
 

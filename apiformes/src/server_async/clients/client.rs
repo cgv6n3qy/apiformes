@@ -10,6 +10,7 @@ pub struct Client {
     pub(super) topic_alias_max: u16,
     pub(super) response_info: bool,
     pub(super) problem_info: bool,
+    pub(super) encrypted: bool,
     pub(super) clientid: String,
     //global server shutdown
     pub(super) shutdown: Arc<Notify>,
@@ -19,7 +20,11 @@ pub struct Client {
 }
 
 impl Client {
-    pub(super) fn new(shutdown: Arc<Notify>, outgoing: UnboundedSender<Packet>) -> Self {
+    pub(super) fn new(
+        shutdown: Arc<Notify>,
+        outgoing: UnboundedSender<Packet>,
+        encrypted: bool,
+    ) -> Self {
         Client {
             session_expirary: 0,
             recv_max: u16::MAX,
@@ -31,6 +36,7 @@ impl Client {
             shutdown,
             killme: Arc::new(Notify::new()),
             outgoing,
+            encrypted,
         }
     }
 
