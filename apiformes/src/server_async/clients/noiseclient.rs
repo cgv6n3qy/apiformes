@@ -13,7 +13,7 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tracing::{error, info, instrument, warn};
 
 use futures::{SinkExt, StreamExt};
-
+use tracing::trace;
 pub struct NoiseClient {
     stream: Framed<TcpStream, LengthDelimitedCodec>,
     saddr: SocketAddr,
@@ -221,18 +221,27 @@ async fn handshake(
         .next()
         .await
         .ok_or(ServerError::Misc("Client disconnected".to_owned()))??;
+    trace!("-> e, es");
+    trace!("{:x?}", &frame[..]);
     let mut out_buf = [0; 200];
     handshake.read_message(&frame[..], &mut [])?;
 
     // <- e, ee
     let size = handshake.write_message(&[], &mut out_buf)?;
-    stream.send(Bytes::copy_from_slice(&frame[..size])).await?;
+    trace!("<- e, ee");
+    trace!("{:x?}", &out_buf[..size]);
+    stream
+        .send(Bytes::copy_from_slice(&out_buf[..size]))
+        .await?;
 
     // -> s, se
     let frame = stream
         .next()
         .await
         .ok_or(ServerError::Misc("Client disconnected".to_owned()))??;
+    trace!("-> s, se");
+    trace!("{:x?}", &frame[..]);
     handshake.read_message(&frame[..], &mut [])?;
+
     Ok(())
 }
