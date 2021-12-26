@@ -1,4 +1,4 @@
-use super::{topics::Topics, Client, MqttServerConfig, ServerError};
+use super::{topics::Topics, Client, MqttServerConfig, Permeability, ServerError};
 use tokio::sync::{mpsc::UnboundedReceiver, Notify, RwLock};
 use tokio::task::JoinHandle;
 
@@ -89,8 +89,13 @@ impl Dispatcher {
         if let Some(ids) = self.topics.read().await.get_subscribed(topic) {
             trace!("Clients registers at {} are {:?}", topic, ids);
             let clients = self.clients.read().await;
+            let strict_encryption = clients.get(client).unwrap().encrypted()
+                && self.cfg.channel_permeability == Permeability::Strict;
             for id in ids {
                 if let Some(c) = clients.get(id) {
+                    if strict_encryption && !c.encrypted() {
+                        continue;
+                    }
                     if let Err(_) = c.send(resp.clone()) {
                         error!(clientid = id.as_str(), "Internal Error: tx closed");
                     };

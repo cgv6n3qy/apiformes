@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 
 #[cfg(feature = "noise")]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq)]
 pub enum Permeability {
     Permissive,
     Strict,

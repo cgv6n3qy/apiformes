@@ -40,6 +40,9 @@ impl Client {
         }
     }
 
+    pub fn encrypted(&self) -> bool {
+        self.encrypted
+    }
     pub fn shutdown(self) {
         self.shutdown.notify_one();
     }
