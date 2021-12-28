@@ -3,7 +3,7 @@ use crate::packets::prelude::*;
 use crate::server_async::{cfg::*, config::MqttServerConfig, error::ServerError};
 use std::sync::Arc;
 use tokio::sync::{
-    mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    mpsc::{unbounded_channel, Sender, UnboundedReceiver},
     Notify,
 };
 use tracing::{error, info, instrument, warn};
@@ -36,7 +36,7 @@ impl Connection {
 }
 
 pub(super) struct ClientWorker {
-    incoming: UnboundedSender<(String, Packet)>,
+    incoming: Sender<(String, Packet)>,
     outgoing: UnboundedReceiver<Packet>,
     conn: Connection,
     cfg: Arc<MqttServerConfig>,
@@ -48,7 +48,7 @@ impl ClientWorker {
         tokio::select! {
             p = self.conn.recv() => {
                 let packet = p?;
-                self.incoming.send((self.internals.clientid.clone(), packet)).
+                self.incoming.send((self.internals.clientid.clone(), packet)).await.
                     map_err(|_| ServerError::Misc("Error sending incoming packet to processing queue".to_owned()))?;
             }
             p = self.outgoing.recv() => {
@@ -90,7 +90,7 @@ impl ClientWorker {
         c: Connection,
         cfg: Arc<MqttServerConfig>,
         shutdown: Arc<Notify>,
-        incoming: UnboundedSender<(String, Packet)>,
+        incoming: Sender<(String, Packet)>,
     ) -> Self {
         let (outgoing_tx, outgoing_rx) = unbounded_channel();
         ClientWorker {

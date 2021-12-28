@@ -1,5 +1,5 @@
 use super::{topics::Topics, Client, MqttServerConfig, Permeability, ServerError};
-use tokio::sync::{mpsc::UnboundedReceiver, Notify, RwLock};
+use tokio::sync::{mpsc::Receiver, Notify, RwLock};
 use tokio::task::JoinHandle;
 
 use crate::packets::prelude::*;
@@ -13,7 +13,7 @@ pub struct Dispatcher {
     cfg: Arc<MqttServerConfig>,
     shutdown: Arc<Notify>,
     clients: Arc<RwLock<HashMap<String, Client>>>,
-    incoming: UnboundedReceiver<(String, Packet)>,
+    incoming: Receiver<(String, Packet)>,
 }
 
 impl Dispatcher {
@@ -22,7 +22,7 @@ impl Dispatcher {
         cfg: Arc<MqttServerConfig>,
         shutdown: Arc<Notify>,
         clients: Arc<RwLock<HashMap<String, Client>>>,
-        incoming: UnboundedReceiver<(String, Packet)>,
+        incoming: Receiver<(String, Packet)>,
     ) -> Self {
         Dispatcher {
             topics,

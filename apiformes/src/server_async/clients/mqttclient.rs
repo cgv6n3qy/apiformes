@@ -8,7 +8,10 @@ use tokio::time::{sleep, Duration};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
-    sync::{mpsc::UnboundedSender, Notify},
+    sync::{
+        mpsc::{Sender, UnboundedSender},
+        Notify,
+    },
 };
 use tracing::{error, info, instrument, warn};
 
@@ -65,7 +68,7 @@ pub struct MqttListener {
     queue: UnboundedSender<ClientWorker>,
     shutdown: Arc<Notify>,
     cfg: Arc<MqttServerConfig>,
-    incoming: UnboundedSender<(String, Packet)>,
+    incoming: Sender<(String, Packet)>,
 }
 
 impl MqttListener {
@@ -74,7 +77,7 @@ impl MqttListener {
         queue: UnboundedSender<ClientWorker>,
         shutdown: Arc<Notify>,
         cfg: Arc<MqttServerConfig>,
-        incoming: UnboundedSender<(String, Packet)>,
+        incoming: Sender<(String, Packet)>,
     ) -> MqttListener {
         MqttListener {
             mqtt_listener: listener,

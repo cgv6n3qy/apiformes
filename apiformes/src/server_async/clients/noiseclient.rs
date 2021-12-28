@@ -7,7 +7,10 @@ use std::{fmt, net::SocketAddr, sync::Arc};
 use tokio::time::{sleep, Duration};
 use tokio::{
     net::{TcpListener, TcpStream},
-    sync::{mpsc::UnboundedSender, Notify},
+    sync::{
+        mpsc::{Sender, UnboundedSender},
+        Notify,
+    },
 };
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tracing::{error, info, instrument, warn};
@@ -44,7 +47,7 @@ impl NoiseClient {
             .stream
             .next()
             .await
-            .ok_or_else(||ServerError::Misc("Client disconnected".to_owned()))??;
+            .ok_or_else(|| ServerError::Misc("Client disconnected".to_owned()))??;
         //TODO when you implement noise protocol by hand... make sure to make this happen in place
         let mut message = vec![0; frame.remaining()];
         self.crypto.read_message(&frame[..], &mut message)?;
@@ -76,7 +79,7 @@ pub struct NoiseListener {
     queue: UnboundedSender<ClientWorker>,
     shutdown: Arc<Notify>,
     cfg: Arc<MqttServerConfig>,
-    incoming: UnboundedSender<(String, Packet)>,
+    incoming: Sender<(String, Packet)>,
 }
 
 impl NoiseListener {
@@ -85,7 +88,7 @@ impl NoiseListener {
         queue: UnboundedSender<ClientWorker>,
         shutdown: Arc<Notify>,
         cfg: Arc<MqttServerConfig>,
-        incoming: UnboundedSender<(String, Packet)>,
+        incoming: Sender<(String, Packet)>,
     ) -> NoiseListener {
         NoiseListener {
             listener,
@@ -132,7 +135,7 @@ fn connect_client(
     queue: UnboundedSender<ClientWorker>,
     shutdown: Arc<Notify>,
     cfg: Arc<MqttServerConfig>,
-    incoming: UnboundedSender<(String, Packet)>,
+    incoming: Sender<(String, Packet)>,
 ) {
     tokio::spawn(
         async move { _connect_client(stream, saddr, queue, shutdown, cfg, incoming).await },
@@ -160,7 +163,7 @@ async fn _connect_client(
     queue: UnboundedSender<ClientWorker>,
     shutdown: Arc<Notify>,
     cfg: Arc<MqttServerConfig>,
-    incoming: UnboundedSender<(String, Packet)>,
+    incoming: Sender<(String, Packet)>,
 ) {
     let keep_alive = cfg.keep_alive as u64;
     let mut stream = Framed::new(stream, LengthDelimitedCodec::new());
@@ -190,7 +193,12 @@ async fn _connect_client(
     let transport = responder.into_transport_mode().unwrap();
 
     let nc = NoiseClient::new(stream, saddr, transport);
-    let mut client = ClientWorker::new(Connection::Noise(Box::new(nc)), cfg, shutdown.clone(), incoming);
+    let mut client = ClientWorker::new(
+        Connection::Noise(Box::new(nc)),
+        cfg,
+        shutdown.clone(),
+        incoming,
+    );
     let state = tokio::select! {
         _ = shutdown.notified() => ConnectState::ShuttingDown,
         v = client.connect() => v.into(),

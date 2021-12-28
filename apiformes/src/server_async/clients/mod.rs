@@ -15,7 +15,7 @@ use std::{net::SocketAddr, sync::Arc};
 use tokio::{
     net::TcpListener,
     sync::{
-        mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+        mpsc::{unbounded_channel, Sender, UnboundedReceiver, UnboundedSender},
         Notify, RwLock,
     },
     task::JoinHandle,
@@ -48,7 +48,7 @@ impl ClientManager {
         cfg: Arc<MqttServerConfig>,
         clients: Arc<RwLock<HashMap<String, Client>>>,
         shutdown: Arc<Notify>,
-        incoming: UnboundedSender<(String, Packet)>,
+        incoming: Sender<(String, Packet)>,
     ) -> Result<Vec<JoinHandle<()>>, ServerError> {
         let (tx, rx) = unbounded_channel();
 
@@ -118,7 +118,7 @@ impl ClientManager {
         tx: UnboundedSender<ClientWorker>,
         shutdown: Arc<Notify>,
         cfg: Arc<MqttServerConfig>,
-        incoming: UnboundedSender<(String, Packet)>,
+        incoming: Sender<(String, Packet)>,
     ) -> Result<JoinHandle<()>, ServerError> {
         let listener = TcpListener::bind(saddr).await?;
         info!(
@@ -138,7 +138,7 @@ impl ClientManager {
         tx: UnboundedSender<ClientWorker>,
         shutdown: Arc<Notify>,
         cfg: Arc<MqttServerConfig>,
-        incoming: UnboundedSender<(String, Packet)>,
+        incoming: Sender<(String, Packet)>,
     ) -> Result<JoinHandle<()>, ServerError> {
         let listener = TcpListener::bind(saddr).await?;
         info!(

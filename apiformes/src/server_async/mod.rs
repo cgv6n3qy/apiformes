@@ -5,19 +5,19 @@ mod dispatcher;
 pub mod error;
 mod topics;
 
+use crate::packets::prelude::Packet;
 use clients::{Client, ClientManager};
 pub use config::{MqttServerConfig, Permeability};
+use dispatcher::Dispatcher;
 use error::ServerError;
+use std::mem::size_of;
 use std::{collections::HashMap, sync::Arc};
 use tokio::{
-    sync::{mpsc::unbounded_channel, Notify, RwLock},
+    sync::{mpsc::channel, Notify, RwLock},
     task::JoinHandle,
 };
 use topics::Topics;
-
-use dispatcher::Dispatcher;
 use tracing::{error, info, instrument};
-
 pub struct MqttServer {
     clients: Arc<RwLock<HashMap<String, Client>>>,
     shutdown: Arc<Notify>,
@@ -29,7 +29,8 @@ pub struct MqttServer {
 impl MqttServer {
     #[instrument(name = "MqttServer::new", skip(cfg))]
     pub async fn new(cfg: MqttServerConfig) -> Result<Self, ServerError> {
-        let (incoming_tx, incoming_rx) = unbounded_channel();
+        let queue_len = cfg.dispatcher_queue_size / size_of::<(String, Packet)>();
+        let (incoming_tx, incoming_rx) = channel(queue_len);
         let shutdown = Arc::new(Notify::new());
         let cfg = Arc::new(cfg);
         let clients = Arc::new(RwLock::new(HashMap::new()));
