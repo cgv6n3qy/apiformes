@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 pub(super) enum Connection {
     Mqtt(MqttClient),
-    Noise(NoiseClient),
+    Noise(Box<NoiseClient>),
 }
 
 impl Connection {

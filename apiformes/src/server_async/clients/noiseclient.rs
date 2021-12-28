@@ -44,7 +44,7 @@ impl NoiseClient {
             .stream
             .next()
             .await
-            .ok_or(ServerError::Misc("Client disconnected".to_owned()))??;
+            .ok_or_else(||ServerError::Misc("Client disconnected".to_owned()))??;
         //TODO when you implement noise protocol by hand... make sure to make this happen in place
         let mut message = vec![0; frame.remaining()];
         self.crypto.read_message(&frame[..], &mut message)?;
@@ -190,7 +190,7 @@ async fn _connect_client(
     let transport = responder.into_transport_mode().unwrap();
 
     let nc = NoiseClient::new(stream, saddr, transport);
-    let mut client = ClientWorker::new(Connection::Noise(nc), cfg, shutdown.clone(), incoming);
+    let mut client = ClientWorker::new(Connection::Noise(Box::new(nc)), cfg, shutdown.clone(), incoming);
     let state = tokio::select! {
         _ = shutdown.notified() => ConnectState::ShuttingDown,
         v = client.connect() => v.into(),
@@ -220,7 +220,7 @@ async fn handshake(
     let frame = stream
         .next()
         .await
-        .ok_or(ServerError::Misc("Client disconnected".to_owned()))??;
+        .ok_or_else(|| ServerError::Misc("Client disconnected".to_owned()))??;
     trace!("-> e, es");
     trace!("{:x?}", &frame[..]);
     let mut out_buf = [0; 200];
@@ -238,7 +238,7 @@ async fn handshake(
     let frame = stream
         .next()
         .await
-        .ok_or(ServerError::Misc("Client disconnected".to_owned()))??;
+        .ok_or_else(|| ServerError::Misc("Client disconnected".to_owned()))??;
     trace!("-> s, se");
     trace!("{:x?}", &frame[..]);
     handshake.read_message(&frame[..], &mut [])?;

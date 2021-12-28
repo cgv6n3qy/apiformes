@@ -36,7 +36,7 @@ impl Dispatcher {
         let disconnect = Disconnect::new(DisconnectReasonCode::ImplementationSpecificError).build();
         let clients = self.clients.read().await;
         let c = clients.get(client).unwrap();
-        if let Err(_) = c.send(disconnect) {
+        if c.send(disconnect).is_err() {
             error!(clientid = client, "Internal Error: tx closed");
         }
         Err(ServerError::Misc("Unimplemented".to_owned()))
@@ -96,7 +96,7 @@ impl Dispatcher {
                     if strict_encryption && !c.encrypted() {
                         continue;
                     }
-                    if let Err(_) = c.send(resp.clone()) {
+                    if c.send(resp.clone()).is_err() {
                         error!(clientid = id.as_str(), "Internal Error: tx closed");
                     };
                 }
@@ -126,7 +126,7 @@ impl Dispatcher {
         // write RAII
         let mut topics = self.topics.write().await;
         for (topic, options) in sub.topics_iter() {
-            let qos: QoS = options.clone().try_into()?;
+            let qos: QoS = (*options).try_into()?;
             match qos {
                 QoS::QoS0 => (),
                 _ => {
@@ -134,7 +134,7 @@ impl Dispatcher {
                     continue;
                 }
             }
-            match options.clone().try_into()? {
+            match (*options).try_into()? {
                 RetainHandling::DoNotSend => (),
                 _ => {
                     suback.add_reason_code(SubAckReasonCode::ImplementationSpecificError);
@@ -153,7 +153,7 @@ impl Dispatcher {
         }
         let clients = self.clients.read().await;
         if let Some(c) = clients.get(client) {
-            if let Err(_) = c.send(suback.build()) {
+            if c.send(suback.build()).is_err() {
                 error!(clientid = client, "Internal Error: tx closed");
             }
         }
@@ -165,8 +165,8 @@ impl Dispatcher {
     }
     async fn process_packet(&mut self, client: &str, packet: Packet) -> Result<(), ServerError> {
         match packet {
-            Packet::Publish(publish) => self.process_publish(&client, publish).await,
-            Packet::Subscribe(sub) => self.process_subscribe(&client, sub).await,
+            Packet::Publish(publish) => self.process_publish(client, publish).await,
+            Packet::Subscribe(sub) => self.process_subscribe(client, sub).await,
             _ => self.unimplemented(client).await,
         }
     }
