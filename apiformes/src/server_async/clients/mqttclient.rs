@@ -2,6 +2,7 @@ use super::clientworker::{ClientWorker, Connection};
 use crate::packets::prelude::*;
 use crate::server_async::{config::MqttServerConfig, error::ServerError};
 use bytes::{Buf, BytesMut};
+use std::io::Cursor;
 use std::{fmt, net::SocketAddr, sync::Arc};
 use tokio::time::{sleep, Duration};
 use tokio::{
@@ -34,7 +35,8 @@ impl MqttClient {
     pub async fn recv(&mut self) -> Result<Packet, ServerError> {
         self.stream.read_buf(&mut self.bytes).await?;
         loop {
-            match Packet::from_bytes(&mut self.bytes.clone()) {
+            let mut cursor = Cursor::new(&self.bytes[..]);
+            match Packet::from_bytes(&mut cursor) {
                 Ok(packet) => {
                     self.bytes.advance(packet.frame_len());
                     return Ok(packet);
