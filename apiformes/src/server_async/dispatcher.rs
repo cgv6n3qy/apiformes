@@ -2,6 +2,7 @@ use super::{topics::Topics, Client, MqttServerConfig, Permeability, ServerError}
 use tokio::sync::{mpsc::Receiver, Notify, RwLock};
 use tokio::task::JoinHandle;
 
+use super::packetinfo::PacketInfo;
 use crate::packets::prelude::*;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -13,7 +14,7 @@ pub struct Dispatcher {
     cfg: Arc<MqttServerConfig>,
     shutdown: Arc<Notify>,
     clients: Arc<RwLock<HashMap<String, Client>>>,
-    incoming: Receiver<(String, Packet)>,
+    incoming: Receiver<PacketInfo>,
 }
 
 impl Dispatcher {
@@ -22,7 +23,7 @@ impl Dispatcher {
         cfg: Arc<MqttServerConfig>,
         shutdown: Arc<Notify>,
         clients: Arc<RwLock<HashMap<String, Client>>>,
-        incoming: Receiver<(String, Packet)>,
+        incoming: Receiver<PacketInfo>,
     ) -> Self {
         Dispatcher {
             topics,
@@ -172,15 +173,18 @@ impl Dispatcher {
     }
     async fn process_forever(mut self) {
         loop {
-            let (client, packet) = match self.incoming.recv().await {
-                Some(data) => data,
+            let packetinfo = match self.incoming.recv().await {
+                Some(p) => p,
                 None => {
                     warn!("incomming tx is closed");
                     break;
                 }
             };
-            if let Err(e) = self.process_packet(&client, packet).await {
-                error!(clientid = &*client, "{:?}", e);
+            if let Err(e) = self
+                .process_packet(&packetinfo.senderid, packetinfo.packet)
+                .await
+            {
+                error!(clientid = &*packetinfo.senderid, "{:?}", e);
             }
         }
     }

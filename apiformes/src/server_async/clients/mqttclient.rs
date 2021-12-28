@@ -1,6 +1,6 @@
 use super::clientworker::{ClientWorker, Connection};
 use crate::packets::prelude::*;
-use crate::server_async::{config::MqttServerConfig, error::ServerError};
+use crate::server_async::{config::MqttServerConfig, error::ServerError, packetinfo::PacketInfo};
 use bytes::{Buf, BytesMut};
 use std::io::Cursor;
 use std::{fmt, net::SocketAddr, sync::Arc};
@@ -68,7 +68,7 @@ pub struct MqttListener {
     queue: UnboundedSender<ClientWorker>,
     shutdown: Arc<Notify>,
     cfg: Arc<MqttServerConfig>,
-    incoming: Sender<(String, Packet)>,
+    incoming: Sender<PacketInfo>,
 }
 
 impl MqttListener {
@@ -77,7 +77,7 @@ impl MqttListener {
         queue: UnboundedSender<ClientWorker>,
         shutdown: Arc<Notify>,
         cfg: Arc<MqttServerConfig>,
-        incoming: Sender<(String, Packet)>,
+        incoming: Sender<PacketInfo>,
     ) -> MqttListener {
         MqttListener {
             mqtt_listener: listener,

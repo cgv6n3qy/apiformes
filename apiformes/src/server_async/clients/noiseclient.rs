@@ -1,6 +1,8 @@
 use super::clientworker::{ClientWorker, Connection};
 use crate::packets::prelude::*;
-use crate::server_async::{cfg::NOISE_PATTERN, config::MqttServerConfig, error::ServerError};
+use crate::server_async::{
+    cfg::NOISE_PATTERN, config::MqttServerConfig, error::ServerError, packetinfo::PacketInfo,
+};
 use bytes::{Buf, Bytes, BytesMut};
 use snow::{HandshakeState, TransportState};
 use std::{fmt, net::SocketAddr, sync::Arc};
@@ -79,7 +81,7 @@ pub struct NoiseListener {
     queue: UnboundedSender<ClientWorker>,
     shutdown: Arc<Notify>,
     cfg: Arc<MqttServerConfig>,
-    incoming: Sender<(String, Packet)>,
+    incoming: Sender<PacketInfo>,
 }
 
 impl NoiseListener {
@@ -88,7 +90,7 @@ impl NoiseListener {
         queue: UnboundedSender<ClientWorker>,
         shutdown: Arc<Notify>,
         cfg: Arc<MqttServerConfig>,
-        incoming: Sender<(String, Packet)>,
+        incoming: Sender<PacketInfo>,
     ) -> NoiseListener {
         NoiseListener {
             listener,
@@ -135,7 +137,7 @@ fn connect_client(
     queue: UnboundedSender<ClientWorker>,
     shutdown: Arc<Notify>,
     cfg: Arc<MqttServerConfig>,
-    incoming: Sender<(String, Packet)>,
+    incoming: Sender<PacketInfo>,
 ) {
     tokio::spawn(
         async move { _connect_client(stream, saddr, queue, shutdown, cfg, incoming).await },
@@ -163,7 +165,7 @@ async fn _connect_client(
     queue: UnboundedSender<ClientWorker>,
     shutdown: Arc<Notify>,
     cfg: Arc<MqttServerConfig>,
-    incoming: Sender<(String, Packet)>,
+    incoming: Sender<PacketInfo>,
 ) {
     let keep_alive = cfg.keep_alive as u64;
     let mut stream = Framed::new(stream, LengthDelimitedCodec::new());

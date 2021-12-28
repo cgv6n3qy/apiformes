@@ -4,8 +4,7 @@ mod mqttclient;
 #[cfg(feature = "noise")]
 mod noiseclient;
 
-use crate::packets::prelude::Packet;
-use crate::server_async::{config::MqttServerConfig, error::ServerError};
+use crate::server_async::{config::MqttServerConfig, error::ServerError, packetinfo::PacketInfo};
 pub use client::Client;
 use clientworker::ClientWorker;
 pub use mqttclient::MqttListener;
@@ -48,7 +47,7 @@ impl ClientManager {
         cfg: Arc<MqttServerConfig>,
         clients: Arc<RwLock<HashMap<String, Client>>>,
         shutdown: Arc<Notify>,
-        incoming: Sender<(String, Packet)>,
+        incoming: Sender<PacketInfo>,
     ) -> Result<Vec<JoinHandle<()>>, ServerError> {
         let (tx, rx) = unbounded_channel();
 
@@ -118,7 +117,7 @@ impl ClientManager {
         tx: UnboundedSender<ClientWorker>,
         shutdown: Arc<Notify>,
         cfg: Arc<MqttServerConfig>,
-        incoming: Sender<(String, Packet)>,
+        incoming: Sender<PacketInfo>,
     ) -> Result<JoinHandle<()>, ServerError> {
         let listener = TcpListener::bind(saddr).await?;
         info!(
@@ -138,7 +137,7 @@ impl ClientManager {
         tx: UnboundedSender<ClientWorker>,
         shutdown: Arc<Notify>,
         cfg: Arc<MqttServerConfig>,
-        incoming: Sender<(String, Packet)>,
+        incoming: Sender<PacketInfo>,
     ) -> Result<JoinHandle<()>, ServerError> {
         let listener = TcpListener::bind(saddr).await?;
         info!(

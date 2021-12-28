@@ -3,6 +3,7 @@ pub mod clients;
 mod config;
 mod dispatcher;
 pub mod error;
+mod packetinfo;
 mod topics;
 
 use crate::packets::prelude::Packet;
