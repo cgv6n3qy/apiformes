@@ -1,6 +1,6 @@
 use apiformes::server_async::{MqttServer, MqttServerConfig, Permeability};
+use tokio::time::{sleep, Duration};
 use tracing_subscriber::{filter::EnvFilter, FmtSubscriber};
-
 #[tokio::main]
 async fn main() {
     let filter = EnvFilter::from_default_env(); //.add_directive(LevelFilter::INFO.into());
@@ -30,6 +30,6 @@ async fn main() {
     let _server = MqttServer::new(cfg).await.unwrap();
     //server.shutdown().await;
     loop {
-        tokio::task::yield_now().await;
+        sleep(Duration::from_secs(600)).await;
     }
 }
