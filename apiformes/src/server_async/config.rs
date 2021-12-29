@@ -19,6 +19,11 @@ pub struct MqttServerConfig {
     /// number the more back pressure applied to client threads which mean more contex
     /// switching between threads.
     pub dispatcher_queue_size: usize,
+
+    /// Maximum packet that the server may send or receive
+    /// If the server receives a packet bigger than this size, it will disconect
+    pub max_packet_size: u32,
+
     #[cfg(feature = "noise")]
     /// IP and port for encrypted MQTT
     pub noise_socketaddr: Option<SocketAddr>,

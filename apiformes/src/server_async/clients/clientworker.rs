@@ -100,7 +100,7 @@ impl ClientWorker {
     ) -> Self {
         let (outgoing_tx, outgoing_rx) = unbounded_channel();
         ClientWorker {
-            internals: Client::new(shutdown, outgoing_tx, c.is_encrypted()),
+            internals: Client::new(shutdown, outgoing_tx, c.is_encrypted(), cfg.max_packet_size),
             incoming,
             outgoing: outgoing_rx,
             conn: c,
@@ -139,7 +139,8 @@ impl ClientWorker {
                 }
                 Property::ReceiveMaximum => self.internals.recv_max = v.into_u16().unwrap(),
                 Property::MaximumPacketSize => {
-                    self.internals.max_packet_size = v.into_u32().unwrap()
+                    self.internals.max_packet_size =
+                        self.internals.max_packet_size.min(v.into_u32().unwrap())
                 }
                 Property::TopicAliasMaximum => {
                     self.internals.topic_alias_max = v.into_u16().unwrap()

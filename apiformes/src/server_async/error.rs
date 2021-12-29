@@ -2,6 +2,7 @@ use crate::packets::prelude::DataParseError;
 use std::io;
 #[derive(Debug)]
 pub enum ServerError {
+    MaxPacketSizeExceeded,
     Io(io::Error),
     Packet(DataParseError),
 

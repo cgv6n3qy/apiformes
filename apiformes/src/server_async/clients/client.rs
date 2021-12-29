@@ -24,11 +24,12 @@ impl Client {
         shutdown: Arc<Notify>,
         outgoing: UnboundedSender<Packet>,
         encrypted: bool,
+        max_packet_size: u32,
     ) -> Self {
         Client {
             session_expirary: 0,
             recv_max: u16::MAX,
-            max_packet_size: u32::MAX,
+            max_packet_size,
             topic_alias_max: 0,
             response_info: false,
             problem_info: true,

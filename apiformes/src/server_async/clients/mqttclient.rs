@@ -19,6 +19,7 @@ pub struct MqttClient {
     stream: TcpStream,
     bytes: BytesMut,
     saddr: SocketAddr,
+    max_packet_size: u32,
 }
 
 impl fmt::Debug for MqttClient {
@@ -28,15 +29,18 @@ impl fmt::Debug for MqttClient {
 }
 
 impl MqttClient {
-    pub fn new(stream: TcpStream, saddr: SocketAddr) -> Self {
+    pub fn new(stream: TcpStream, saddr: SocketAddr, max_packet_size: u32) -> Self {
         MqttClient {
             stream,
             saddr,
-            bytes: BytesMut::new(),
+            bytes: BytesMut::with_capacity(max_packet_size as usize),
+            max_packet_size,
         }
     }
     pub async fn recv(&mut self) -> Result<Packet, ServerError> {
-        self.stream.read_buf(&mut self.bytes).await?;
+        let (reader, _) = self.stream.split();
+        let mut stream = reader.take(self.max_packet_size as u64 - self.bytes.remaining() as u64);
+        stream.read_buf(&mut self.bytes).await?;
         loop {
             let mut cursor = Cursor::new(&self.bytes[..]);
             match Packet::from_bytes(&mut cursor) {
@@ -49,6 +53,9 @@ impl MqttClient {
                     needed: _,
                     available: _,
                 }) => {
+                    if self.bytes.remaining() == self.max_packet_size as usize {
+                        return Err(ServerError::MaxPacketSizeExceeded);
+                    }
                     self.stream.read_buf(&mut self.bytes).await?;
                 }
                 Err(e) => return Err(e.into()),
@@ -89,7 +96,7 @@ impl MqttListener {
     }
     async fn listen(&mut self) -> Result<(), ServerError> {
         let (stream, saddr) = self.mqtt_listener.accept().await?;
-        let connection = Connection::Mqtt(MqttClient::new(stream, saddr));
+        let connection = Connection::Mqtt(MqttClient::new(stream, saddr, self.cfg.max_packet_size));
         let client = ClientWorker::new(
             connection,
             self.cfg.clone(),

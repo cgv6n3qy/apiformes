@@ -16,6 +16,7 @@ async fn main() {
         noise_socketaddr: Some("0.0.0.0:8883".parse().unwrap()),
         channel_permeability: Permeability::Strict,
         dispatcher_queue_size: 1024 * 1024,
+        max_packet_size: 64 * 1024,
         private_key: [
             205, 100, 157, 80, 236, 140, 109, 150, 91, 254, 27, 10, 200, 89, 193, 158, 49, 238, 24,
             134, 137, 225, 220, 169, 32, 209, 239, 35, 2, 254, 0, 166,
