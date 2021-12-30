@@ -38,9 +38,6 @@ impl MqttClient {
         }
     }
     pub async fn recv(&mut self) -> Result<Packet, ServerError> {
-        let (reader, _) = self.stream.split();
-        let mut stream = reader.take(self.max_packet_size as u64 - self.bytes.remaining() as u64);
-        stream.read_buf(&mut self.bytes).await?;
         loop {
             let mut cursor = Cursor::new(&self.bytes[..]);
             match Packet::from_bytes(&mut cursor) {
@@ -48,7 +45,6 @@ impl MqttClient {
                     self.bytes.advance(packet.frame_len());
                     return Ok(packet);
                 }
-                //TODO this may be optimized to read once
                 Err(DataParseError::InsufficientBuffer {
                     needed: _,
                     available: _,
@@ -56,6 +52,9 @@ impl MqttClient {
                     if self.bytes.remaining() == self.max_packet_size as usize {
                         return Err(ServerError::MaxPacketSizeExceeded);
                     }
+                    let (reader, _) = self.stream.split();
+                    let mut stream =
+                        reader.take(self.max_packet_size as u64 - self.bytes.remaining() as u64);
                     stream.read_buf(&mut self.bytes).await?;
                 }
                 Err(e) => return Err(e.into()),
