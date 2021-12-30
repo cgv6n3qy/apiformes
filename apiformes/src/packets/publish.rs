@@ -136,6 +136,10 @@ impl Publish {
     pub fn set_payload<T: Buf>(&mut self, mut buf: T) {
         self.payload = buf.copy_to_bytes(buf.remaining());
     }
+    pub fn set_payload_bytes(&mut self, buf: Bytes) {
+        self.payload = buf;
+    }
+
     pub fn payload(&self) -> Bytes {
         self.payload.clone()
     }

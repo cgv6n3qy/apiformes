@@ -85,7 +85,7 @@ impl Dispatcher {
                 ),
             }
         }
-        response.set_payload(publish.payload());
+        response.set_payload_bytes(publish.payload());
         let resp = response.build();
         if let Some(ids) = self.topics.read().await.get_subscribed(topic) {
             trace!("Clients registers at {} are {:?}", topic, ids);
