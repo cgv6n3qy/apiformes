@@ -56,7 +56,7 @@ impl MqttClient {
                     if self.bytes.remaining() == self.max_packet_size as usize {
                         return Err(ServerError::MaxPacketSizeExceeded);
                     }
-                    self.stream.read_buf(&mut self.bytes).await?;
+                    stream.read_buf(&mut self.bytes).await?;
                 }
                 Err(e) => return Err(e.into()),
             }
