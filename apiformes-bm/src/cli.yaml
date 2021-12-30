@@ -1,0 +1,62 @@
+name: apiformes-pm
+about: Benchmarking tool for MQTT brokers
+args:
+    - Endpoint:
+        short: e
+        long: endpoint
+        value_name: ip:port
+        help: Connection endpoint for the MQTT broker
+        takes_value: true
+        required: true
+    - Subscribers:
+        short: s
+        long: subs
+        value_name: num
+        help: Number of concurrent subscribers to launch
+        takes_value: true
+    - Publishers:
+        short: p
+        long: pubs
+        value_name: num
+        help: Number of concurrent publishers to launch
+        takes_value: true
+    - Messages:
+        short: m
+        long: messages
+        value_name: num
+        help: Number of messages each publisher should send
+        takes_value: true
+    - NoDelay:
+        long: no-delay
+        help: Publishers must send messages as fast as possible with no delay between messages
+        conflicts_with:
+          - ConstDelay
+          - MinMaxDelay
+    - ConstDelay:
+        short: c
+        long: const-delay
+        value_name: delay
+        help: Publishers must wait `delay` between each two consecutive messages
+        takes_value: true
+        conflicts_with:
+          - NoDelay
+          - MinMaxDelay
+    - MinMaxDelay:
+        long: min-max-delay
+        value_name: min:delay
+        help: Publishers must wait random delay with uniform distribution between each two consecutive messages
+        takes_value: true
+        conflicts_with:
+          - NoDelay
+          - ConstDelay
+    - Topic:
+        short: t
+        long: topic
+        value_name: /topic/path
+        help: The topic which will be used for benchmarking
+        takes_value: true
+
+
+    
+    
+    
