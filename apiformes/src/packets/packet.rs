@@ -159,9 +159,9 @@ impl Parsable for Packet {
         Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        if buf.remaining() < 3 {
+        if buf.remaining() < 2 {
             return Err(DataParseError::InsufficientBuffer {
-                needed: 3,
+                needed: 2,
                 available: buf.remaining(),
             });
         }
