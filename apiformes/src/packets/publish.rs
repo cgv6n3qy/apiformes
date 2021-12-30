@@ -87,7 +87,7 @@ pub struct Publish {
 }
 
 impl Publish {
-    pub fn new(topic_name: &str) -> Result<Publish, DataParseError> {
+    pub fn new(topic_name: &str, payload: Bytes) -> Result<Publish, DataParseError> {
         let topic = MqttTopic::new(topic_name)?;
         if topic.is_wildcard() {
             Err(DataParseError::BadTopic)
@@ -97,7 +97,7 @@ impl Publish {
                 topic_name: topic,
                 packet_identifier: None,
                 props: Properties::new(),
-                payload: Bytes::new(),
+                payload,
             })
         }
     }
@@ -222,17 +222,16 @@ mod tests {
     #[test]
     fn test_bad_publish() {
         assert_eq!(
-            Publish::new("topic/#").err().unwrap(),
+            Publish::new("topic/#", Bytes::new()).err().unwrap(),
             DataParseError::BadTopic
         );
     }
     #[test]
     fn test_publish() {
-        let mut publish = Publish::new("/my/topic/").unwrap();
+        let mut publish = Publish::new("/my/topic/", Bytes::from(&[1, 2, 3][..])).unwrap();
         assert!(publish.set_packet_identifier(123).is_err());
         publish.set_qos(QoS::QoS1);
         publish.set_packet_identifier(123).unwrap();
-        publish.set_payload(Bytes::from(&[1, 2, 3][..]));
         let mut b = BytesMut::new();
         publish.serialize(&mut b).unwrap();
         assert_eq!(b.remaining(), publish.size());

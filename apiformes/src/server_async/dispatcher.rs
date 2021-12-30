@@ -58,7 +58,7 @@ impl Dispatcher {
             return self.unimplemented(client).await;
         }
         let topic = publish.topic_name();
-        let mut response = Publish::new(topic).unwrap();
+        let mut response = Publish::new(topic, publish.payload()).unwrap();
         for (k, v) in publish.props_iter() {
             match k {
                 Property::PayloadFormatIndicator => response
@@ -85,7 +85,6 @@ impl Dispatcher {
                 ),
             }
         }
-        response.set_payload_bytes(publish.payload());
         let resp = response.build();
         if let Some(ids) = self.topics.read().await.get_subscribed(topic) {
             trace!("Clients registers at {} are {:?}", topic, ids);
