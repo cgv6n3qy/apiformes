@@ -6,8 +6,11 @@ use std::io::Cursor;
 use std::{fmt, net::SocketAddr, sync::Arc};
 use tokio::time::{sleep, Duration};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::{TcpListener, TcpStream},
+    io::{AsyncReadExt, AsyncWriteExt, Take},
+    net::{
+        tcp::{OwnedReadHalf, OwnedWriteHalf},
+        TcpListener, TcpStream,
+    },
     sync::{
         mpsc::{Sender, UnboundedSender},
         Notify,
@@ -16,7 +19,8 @@ use tokio::{
 use tracing::{error, info, instrument, warn};
 
 pub struct MqttClient {
-    stream: TcpStream,
+    tcp_reader: Take<OwnedReadHalf>,
+    tcp_writer: OwnedWriteHalf,
     bytes: BytesMut,
     saddr: SocketAddr,
     max_packet_size: u32,
@@ -30,8 +34,11 @@ impl fmt::Debug for MqttClient {
 
 impl MqttClient {
     pub fn new(stream: TcpStream, saddr: SocketAddr, max_packet_size: u32) -> Self {
+        let (tcp_reader, tcp_writer) = stream.into_split();
+
         MqttClient {
-            stream,
+            tcp_reader: tcp_reader.take(max_packet_size as u64),
+            tcp_writer,
             saddr,
             bytes: BytesMut::with_capacity(max_packet_size as usize),
             max_packet_size,
@@ -52,10 +59,9 @@ impl MqttClient {
                     if self.bytes.remaining() == self.max_packet_size as usize {
                         return Err(ServerError::MaxPacketSizeExceeded);
                     }
-                    let (reader, _) = self.stream.split();
-                    let mut stream =
-                        reader.take(self.max_packet_size as u64 - self.bytes.remaining() as u64);
-                    stream.read_buf(&mut self.bytes).await?;
+                    self.tcp_reader
+                        .set_limit(self.max_packet_size as u64 - self.bytes.remaining() as u64);
+                    self.tcp_reader.read_buf(&mut self.bytes).await?;
                 }
                 Err(e) => return Err(e.into()),
             }
@@ -64,7 +70,7 @@ impl MqttClient {
     pub async fn send(&mut self, p: &Packet) -> Result<(), ServerError> {
         let mut bytes = BytesMut::with_capacity(p.frame_len());
         p.to_bytes(&mut bytes)?;
-        self.stream.write_all_buf(&mut bytes).await?;
+        self.tcp_writer.write_all_buf(&mut bytes).await?;
         Ok(())
     }
 }
