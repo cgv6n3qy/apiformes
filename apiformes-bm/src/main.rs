@@ -137,7 +137,7 @@ async fn main() {
 
     println!("Benchmarking configuration:");
     println!("Number of concurrent Publishers: {}", cfg.n_pubs);
-    println!("Number of concurrent Subscribers: {}", cfg.n_pubs);
+    println!("Number of concurrent Subscribers: {}", cfg.n_subs);
     println!("Benchmarking topic: {}", cfg.topic);
     println!("Number of publish messages: {}", cfg.iterations);
 
