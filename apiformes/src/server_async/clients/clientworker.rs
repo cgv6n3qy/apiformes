@@ -67,9 +67,9 @@ impl ClientWorker {
     async fn listen_forever(&mut self) {
         loop {
             if let Err(e) = self.listen().await {
-                error!(
+                info!(
                     clientid = &*self.internals.clientid,
-                    "Received error while listening, {:?}", e
+                    "Disconnecting, received error while listening, {:?}", e
                 );
                 break;
             }

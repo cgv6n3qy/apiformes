@@ -97,7 +97,7 @@ impl Dispatcher {
                         continue;
                     }
                     if c.send(resp.clone()).is_err() {
-                        error!(clientid = id.as_str(), "Internal Error: tx closed");
+                        trace!(clientid = id.as_str(), "client shutdown: tx closed");
                     };
                 }
             }
