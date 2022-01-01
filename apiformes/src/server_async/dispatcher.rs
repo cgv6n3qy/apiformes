@@ -46,6 +46,16 @@ impl Dispatcher {
     #[instrument(skip_all)]
     async fn process_publish(&mut self, client: &str, publish: Publish) -> Result<(), ServerError> {
         trace!("Processing a publish packet");
+        let strict_encryption = {
+            let clients = self.clients.read().await;
+            match clients.get(client) {
+                Some(c) => c.encrypted() && self.cfg.channel_permeability == Permeability::Strict,
+                None => {
+                    warn!(clientid = client, "Client Prematurely shutdown before its publish request could be processed");
+                    return Ok(());
+                }
+            }
+        };
         match publish.qos() {
             QoS::QoS0 => (),
             QoS::QoS1 => return self.unimplemented(client).await,
@@ -89,8 +99,6 @@ impl Dispatcher {
         if let Some(ids) = self.topics.read().await.get_subscribed(topic) {
             trace!("Clients registers at {} are {:?}", topic, ids);
             let clients = self.clients.read().await;
-            let strict_encryption = clients.get(client).unwrap().encrypted()
-                && self.cfg.channel_permeability == Permeability::Strict;
             for id in ids {
                 if let Some(c) = clients.get(id) {
                     if strict_encryption && !c.encrypted() {
