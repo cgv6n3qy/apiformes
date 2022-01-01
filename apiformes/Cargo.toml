@@ -6,8 +6,8 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 debug = []
-server_async = ["tokio", "tracing", "serde", "debug", "uuid"]
-noise = ["snow", "tokio-util", "futures"]
+server_async = ["tokio", "tracing", "serde", "debug", "uuid", "futures"]
+noise = ["snow", "tokio-util"]
 default =[]
 
 [dependencies]

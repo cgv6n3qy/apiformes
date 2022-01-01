@@ -64,7 +64,7 @@ impl ClientWorker {
         }
         Ok(())
     }
-    async fn listen_forever(mut self) {
+    async fn listen_forever(&mut self) {
         loop {
             if let Err(e) = self.listen().await {
                 error!(
@@ -76,7 +76,7 @@ impl ClientWorker {
         }
     }
     #[instrument(name = "ClientWorker::run", skip_all)]
-    pub(super) async fn run(self) {
+    pub(super) async fn run(mut self) -> String {
         let shutdown = self.internals.shutdown.clone();
         let killme = self.internals.killme.clone();
         tokio::select! {
@@ -84,6 +84,7 @@ impl ClientWorker {
             _ = shutdown.notified() => (),
             _ = self.listen_forever() => (),
         }
+        self.internals.clientid
     }
 
     pub(super) fn internals(&self) -> &Client {
