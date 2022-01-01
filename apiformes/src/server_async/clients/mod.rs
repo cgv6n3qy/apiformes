@@ -116,7 +116,7 @@ impl ClientManager {
         };
     }
     #[instrument(name = "ClientManager::process_forever", skip_all)]
-    async fn process_forever(mut self) {
+    async fn process_forever(&mut self) {
         loop {
             // the reason we have this before the tokio select is because when workers set is empty
             // we will be burning through CPU cycles because we have nothing to await for,
@@ -135,12 +135,15 @@ impl ClientManager {
             };
         }
     }
-    async fn run(self) {
+    async fn run(mut self) {
         let shutdown = self.shutdown.clone();
         tokio::select! {
             _ = shutdown.notified() => (),
             _ = self.process_forever() => ()
         };
+        while self.workers.next().await.is_some() {
+            // wait for all workers to yeield
+        }
     }
     async fn start_processing(self) -> JoinHandle<()> {
         info!("Starting clients manager");
