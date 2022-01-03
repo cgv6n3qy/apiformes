@@ -13,7 +13,7 @@ pub struct Dispatcher {
     topics: Arc<RwLock<Topics>>,
     cfg: Arc<MqttServerConfig>,
     shutdown: Arc<Notify>,
-    clients: Arc<RwLock<HashMap<String, Client>>>,
+    clients: Arc<RwLock<HashMap<Arc<str>, Client>>>,
     incoming: Receiver<PacketInfo>,
 }
 
@@ -22,7 +22,7 @@ impl Dispatcher {
         topics: Arc<RwLock<Topics>>,
         cfg: Arc<MqttServerConfig>,
         shutdown: Arc<Notify>,
-        clients: Arc<RwLock<HashMap<String, Client>>>,
+        clients: Arc<RwLock<HashMap<Arc<str>, Client>>>,
         incoming: Receiver<PacketInfo>,
     ) -> Self {
         Dispatcher {
@@ -71,7 +71,7 @@ impl Dispatcher {
             return self.unimplemented(client).await;
         }
         let topic = publish.topic_name();
-        let mut response = Publish::new(topic, publish.payload()).unwrap();
+        let mut response = Publish::new(topic.clone(), publish.payload()).unwrap();
         for (k, v) in publish.props_iter() {
             match k {
                 Property::PayloadFormatIndicator => response
@@ -103,7 +103,7 @@ impl Dispatcher {
             trace!("Clients registers at {} are {:?}", topic, ids);
             let clients = self.clients.read().await;
             for id in ids {
-                if let Some(c) = clients.get(id) {
+                if let Some(c) = clients.get(id.as_str()) {
                     if strict_encryption && !c.encrypted() {
                         continue;
                     }

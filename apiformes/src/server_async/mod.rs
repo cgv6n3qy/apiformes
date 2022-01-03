@@ -20,7 +20,7 @@ use tokio::{
 use topics::Topics;
 use tracing::{error, info, instrument};
 pub struct MqttServer {
-    clients: Arc<RwLock<HashMap<String, Client>>>,
+    clients: Arc<RwLock<HashMap<Arc<str>, Client>>>,
     shutdown: Arc<Notify>,
     workers: Vec<JoinHandle<()>>,
     cfg: Arc<MqttServerConfig>,
@@ -70,13 +70,8 @@ impl MqttServer {
     pub fn get_topics(&self) -> &RwLock<Topics> {
         &self.topics
     }
-    pub async fn clients(&self) -> Vec<String> {
-        self.clients
-            .read()
-            .await
-            .keys()
-            .map(|x| x.to_owned())
-            .collect()
+    pub async fn clients(&self) -> Vec<Arc<str>> {
+        self.clients.read().await.keys().cloned().collect()
     }
     pub fn config(&self) -> &MqttServerConfig {
         &self.cfg

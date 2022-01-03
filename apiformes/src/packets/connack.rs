@@ -124,6 +124,7 @@ impl Parsable for ConnAck {
 mod test {
     use super::*;
     use bytes::BytesMut;
+    use std::sync::Arc;
     #[test]
     fn test_connack() {
         let mut connack = ConnAck::new();
@@ -132,7 +133,7 @@ mod test {
         connack
             .add_prop(
                 Property::ReasonString,
-                MqttPropValue::new_string("Déjà vu").unwrap(),
+                MqttPropValue::new_string(Arc::from("Déjà vu")).unwrap(),
             )
             .unwrap();
         let mut b = BytesMut::new();

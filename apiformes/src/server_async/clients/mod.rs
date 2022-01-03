@@ -24,16 +24,16 @@ use tracing::{error, info, instrument, warn};
 
 pub struct ClientManager {
     rx: UnboundedReceiver<ClientWorker>,
-    clients: Arc<RwLock<HashMap<String, Client>>>,
+    clients: Arc<RwLock<HashMap<Arc<str>, Client>>>,
     cfg: Arc<MqttServerConfig>,
     shutdown: Arc<Notify>,
-    workers: FuturesUnordered<JoinHandle<String>>,
+    workers: FuturesUnordered<JoinHandle<Arc<str>>>,
 }
 
 impl ClientManager {
     fn new(
         cfg: Arc<MqttServerConfig>,
-        clients: Arc<RwLock<HashMap<String, Client>>>,
+        clients: Arc<RwLock<HashMap<Arc<str>, Client>>>,
         shutdown: Arc<Notify>,
         rx: UnboundedReceiver<ClientWorker>,
     ) -> Self {
@@ -48,7 +48,7 @@ impl ClientManager {
     #[instrument(name = "ClientManager::start", skip_all)]
     pub async fn start(
         cfg: Arc<MqttServerConfig>,
-        clients: Arc<RwLock<HashMap<String, Client>>>,
+        clients: Arc<RwLock<HashMap<Arc<str>, Client>>>,
         shutdown: Arc<Notify>,
         incoming: Sender<PacketInfo>,
     ) -> Result<Vec<JoinHandle<()>>, ServerError> {
@@ -97,12 +97,12 @@ impl ClientManager {
         self.clients
             .write()
             .await
-            .insert(client.clientid.to_owned(), client.clone());
+            .insert(client.clientid.clone(), client.clone());
         self.workers
             .push(tokio::spawn(async move { worker.run().await }));
         true
     }
-    async fn process_retiring_worker(&mut self, maybe_id: Option<Result<String, JoinError>>) {
+    async fn process_retiring_worker(&mut self, maybe_id: Option<Result<Arc<str>, JoinError>>) {
         //TODO we don't remove the worker information from the topic file system yet
         match maybe_id {
             Some(Err(e)) => error!(

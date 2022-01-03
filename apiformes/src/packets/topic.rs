@@ -3,6 +3,7 @@ use super::{
     parsable::{DataParseError, Parsable},
 };
 use bytes::{Buf, BufMut};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct MqttTopic(MqttUtf8String);
@@ -42,23 +43,19 @@ impl MqttTopic {
             .map(|c| c == '$')
             .unwrap_or(false)
     }
-    pub fn new(topic: &str) -> Result<MqttTopic, DataParseError> {
-        if !is_valid_topic(topic) {
+    pub fn new(topic: Arc<str>) -> Result<MqttTopic, DataParseError> {
+        if !is_valid_topic(&topic) {
             Err(DataParseError::BadTopic)
         } else {
-            Ok(MqttTopic(MqttUtf8String::new(topic.to_owned())?))
+            Ok(MqttTopic(MqttUtf8String::new(topic)?))
         }
     }
-    pub fn unwrap(self) -> String {
+    pub fn unwrap(self) -> Arc<str> {
         self.0.unwrap()
     }
 
-    pub fn inner(&self) -> &str {
+    pub fn inner(&self) -> &Arc<str> {
         self.0.inner()
-    }
-
-    pub fn inner_mut(&mut self) -> &mut String {
-        self.0.inner_mut()
     }
 }
 

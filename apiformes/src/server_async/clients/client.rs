@@ -11,7 +11,7 @@ pub struct Client {
     pub(super) response_info: bool,
     pub(super) problem_info: bool,
     pub(super) encrypted: bool,
-    pub(super) clientid: String,
+    pub(super) clientid: Arc<str>,
     //global server shutdown
     pub(super) shutdown: Arc<Notify>,
     // local shutdown signal
@@ -33,7 +33,7 @@ impl Client {
             topic_alias_max: 0,
             response_info: false,
             problem_info: true,
-            clientid: String::new(),
+            clientid: Arc::from(""), //TODO lazy static would be useful here as well
             shutdown,
             killme: Arc::new(Notify::new()),
             outgoing,

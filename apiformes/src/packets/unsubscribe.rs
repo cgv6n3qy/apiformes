@@ -6,6 +6,7 @@ use super::{
     topic::MqttTopic,
 };
 use bytes::{Buf, BufMut};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Unsubscribe {
@@ -25,11 +26,11 @@ impl Unsubscribe {
             topics: Vec::new(),
         }
     }
-    pub fn topics_iter(&self) -> impl Iterator<Item = &str> {
+    pub fn topics_iter(&self) -> impl Iterator<Item = &Arc<str>> {
         self.topics.iter().map(|t| t.inner())
     }
 
-    pub fn add_topic(&mut self, topic: &str) -> Result<(), DataParseError> {
+    pub fn add_topic(&mut self, topic: Arc<str>) -> Result<(), DataParseError> {
         let topic = MqttTopic::new(topic)?;
         self.topics.push(topic);
         Ok(())
@@ -108,8 +109,8 @@ mod test {
     #[test]
     fn test_unsubscribe() {
         let mut unsubscribe = Unsubscribe::new(123);
-        unsubscribe.add_topic("foo").unwrap();
-        unsubscribe.add_topic("bar").unwrap();
+        unsubscribe.add_topic(Arc::from("foo")).unwrap();
+        unsubscribe.add_topic(Arc::from("bar")).unwrap();
         let mut b = BytesMut::new();
         unsubscribe.serialize(&mut b).unwrap();
         assert_eq!(b.remaining(), unsubscribe.size());

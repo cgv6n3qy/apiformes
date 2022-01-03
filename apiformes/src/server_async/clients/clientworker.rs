@@ -76,7 +76,7 @@ impl ClientWorker {
         }
     }
     #[instrument(name = "ClientWorker::run", skip_all)]
-    pub(super) async fn run(mut self) -> String {
+    pub(super) async fn run(mut self) -> Arc<str> {
         let shutdown = self.internals.shutdown.clone();
         let killme = self.internals.killme.clone();
         tokio::select! {
@@ -194,18 +194,18 @@ impl ClientWorker {
         connack
             .add_prop(Property::MaximumQoS, MqttPropValue::new_u8(MAX_QOS))
             .unwrap();
-        match connect.clientid() {
-            "" => {
-                self.internals.clientid = Uuid::new_v4().to_hyphenated().to_string();
-                info!("Assigning {} to client", self.internals.clientid);
-                connack
-                    .add_prop(
-                        Property::AssignedClientIdentifier,
-                        MqttPropValue::new_string(&self.internals.clientid).unwrap(),
-                    )
-                    .unwrap();
-            }
-            x => self.internals.clientid = x.to_string(),
+        let clientid = connect.clientid();
+        if clientid.is_empty() {
+            self.internals.clientid = Uuid::new_v4().to_hyphenated().to_string().into();
+            info!("Assigning {} to client", self.internals.clientid);
+            connack
+                .add_prop(
+                    Property::AssignedClientIdentifier,
+                    MqttPropValue::new_string(self.internals.clientid.clone()).unwrap(),
+                )
+                .unwrap();
+        } else {
+            self.internals.clientid = clientid.clone();
         }
         connack
             .add_prop(

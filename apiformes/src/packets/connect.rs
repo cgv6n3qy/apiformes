@@ -10,6 +10,7 @@ use super::{
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes};
 use std::convert::TryInto;
+use std::sync::Arc;
 
 bitflags! {
     pub struct ConnectFlags: u8 {
@@ -89,10 +90,10 @@ pub struct Will {
 }
 
 impl Will {
-    pub fn new<T: Buf>(topic: &str, payload: T) -> Result<Self, DataParseError> {
+    pub fn new<T: Buf>(topic: Arc<str>, payload: T) -> Result<Self, DataParseError> {
         Ok(Will {
             props: Properties::new(),
-            topic: MqttUtf8String::new(topic.to_owned())?,
+            topic: MqttUtf8String::new(topic)?,
             payload: MqttBinaryData::new(payload)?,
         })
     }
@@ -105,11 +106,11 @@ impl Will {
     pub fn props_iter(&self) -> impl Iterator<Item = (&Property, &MqttPropValue)> {
         self.props.iter()
     }
-    pub fn topic(&self) -> &str {
+    pub fn topic(&self) -> &Arc<str> {
         self.topic.inner()
     }
-    pub fn set_topic(&mut self, topic: &str) -> Result<(), DataParseError> {
-        self.topic = MqttUtf8String::new(topic.to_owned())?;
+    pub fn set_topic(&mut self, topic: Arc<str>) -> Result<(), DataParseError> {
+        self.topic = MqttUtf8String::new(topic)?;
         Ok(())
     }
     pub fn payload(&mut self) -> &Bytes {
@@ -169,7 +170,7 @@ pub struct Connect {
 }
 
 impl Connect {
-    pub fn new(clientid: String) -> Result<Self, DataParseError> {
+    pub fn new(clientid: Arc<str>) -> Result<Self, DataParseError> {
         Ok(Connect {
             flags: ConnectFlags::from_bits_truncate(0),
             keep_alive: MqttTwoBytesInt::new(0),
@@ -191,18 +192,18 @@ impl Connect {
     pub fn set_clean_start(&mut self) {
         self.flags |= ConnectFlags::CLEAN_START;
     }
-    pub fn clientid(&self) -> &str {
+    pub fn clientid(&self) -> &Arc<str> {
         self.clientid.inner()
     }
     pub fn flags(&self) -> ConnectFlags {
         self.flags
     }
-    pub fn username(&self) -> Option<&str> {
+    pub fn username(&self) -> Option<&Arc<str>> {
         self.username.as_ref().map(|s| s.inner())
     }
-    pub fn set_username(&mut self, username: &str) -> Result<(), DataParseError> {
+    pub fn set_username(&mut self, username: Arc<str>) -> Result<(), DataParseError> {
         self.flags |= ConnectFlags::USERNAME;
-        self.username = Some(MqttUtf8String::new(username.to_owned())?);
+        self.username = Some(MqttUtf8String::new(username)?);
         Ok(())
     }
     pub fn password(&self) -> Option<&Bytes> {
@@ -266,7 +267,8 @@ impl Parsable for Connect {
         let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
         length.serialize(buf)?;
 
-        let protocol_name = MqttUtf8String::new("MQTT".to_string())?;
+        //TODO lazy static to avoid reallocating
+        let protocol_name = MqttUtf8String::new(Arc::from("MQTT"))?;
         protocol_name.serialize(buf)?;
 
         let protocol_version = MqttOneBytesInt::new(5);
@@ -303,7 +305,7 @@ impl Parsable for Connect {
         }
         let mut buf = buf.take(length);
         let protocol_name = MqttUtf8String::deserialize(&mut buf)?;
-        if protocol_name.inner() != "MQTT" {
+        if protocol_name.inner().as_ref() != "MQTT" {
             return Err(DataParseError::BadConnectMessage);
         }
         let protocol_version = MqttOneBytesInt::deserialize(&mut buf)?;
@@ -359,11 +361,11 @@ mod test {
     use bytes::BytesMut;
     #[test]
     fn test_connect_serde() {
-        let mut connect = Connect::new("Client1".to_owned()).unwrap();
+        let mut connect = Connect::new(Arc::from("Client1")).unwrap();
         connect.set_clean_start();
-        connect.set_will(Will::new("Hello", Bytes::from(&b"World"[..])).unwrap());
+        connect.set_will(Will::new(Arc::from("Hello"), Bytes::from(&b"World"[..])).unwrap());
         connect.set_will_qos(QoS::QoS1);
-        connect.set_username("apiformes").unwrap();
+        connect.set_username(Arc::from("apiformes")).unwrap();
         connect.set_keep_alive(5);
         connect
             .add_prop(Property::SessionExpiryInterval, MqttPropValue::new_u32(10))

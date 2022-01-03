@@ -2,6 +2,7 @@ use apiformes::packets::prelude::*;
 use bytes::{Buf, BytesMut};
 use std::io::Cursor;
 use std::io::Result;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpStream, ToSocketAddrs};
@@ -15,7 +16,7 @@ pub struct SubscriberStats {
 pub struct Subscriber {
     time_reference: Instant,
     stream: TcpStream,
-    topic: String,
+    topic: Arc<str>,
     iterations: usize,
     deltas: Vec<Duration>,
     trips_time: Vec<Duration>,
@@ -25,14 +26,14 @@ pub struct Subscriber {
 impl Subscriber {
     pub async fn new<A: ToSocketAddrs>(
         addr: A,
-        topic: &str,
+        topic: Arc<str>,
         iterations: usize,
         time_reference: Instant,
     ) -> Result<Subscriber> {
         Ok(Subscriber {
             time_reference,
             stream: TcpStream::connect(addr).await?,
-            topic: topic.to_owned(),
+            topic: topic,
             deltas: Vec::with_capacity(iterations),
             iterations,
             trips_time: Vec::with_capacity(iterations),
@@ -82,7 +83,7 @@ impl Subscriber {
 
     pub async fn connect(&mut self) -> Result<()> {
         let mut frame = BytesMut::with_capacity(128);
-        let mut conn = Connect::new("".to_owned()).unwrap();
+        let mut conn = Connect::new("".into()).unwrap();
         conn.set_clean_start();
         conn.build().to_bytes(&mut frame).unwrap();
         self.stream.write_all_buf(&mut frame).await?;
@@ -91,7 +92,7 @@ impl Subscriber {
 
         let mut packet = Subscribe::new(1);
         packet
-            .add_topic(&self.topic, RetainHandling::DoNotSend.into())
+            .add_topic(self.topic.clone(), RetainHandling::DoNotSend.into())
             .unwrap();
         packet.build().to_bytes(&mut frame).unwrap();
         self.stream.write_all_buf(&mut frame).await?;

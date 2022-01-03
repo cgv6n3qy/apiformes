@@ -215,6 +215,7 @@ impl Parsable for Packet {
 mod test {
     use super::super::prelude::*;
     use bytes::{Buf, Bytes, BytesMut};
+    use std::sync::Arc;
     #[test]
     fn test_auth_packet() {
         let auth = Auth::new(AuthReasonCode::ReAuthenticate).build();
@@ -243,7 +244,7 @@ mod test {
         connack
             .add_prop(
                 Property::ReasonString,
-                MqttPropValue::new_string("Déjà vu").unwrap(),
+                MqttPropValue::new_string(Arc::from("Déjà vu")).unwrap(),
             )
             .unwrap();
         let connack = connack.build();
@@ -269,11 +270,11 @@ mod test {
     }
     #[test]
     fn test_connect_packet() {
-        let mut connect = Connect::new("Client1".to_owned()).unwrap();
+        let mut connect = Connect::new(Arc::from("Client1")).unwrap();
         connect.set_clean_start();
-        connect.set_will(Will::new("Hello", Bytes::from(&b"World"[..])).unwrap());
+        connect.set_will(Will::new(Arc::from("Hello"), Bytes::from(&b"World"[..])).unwrap());
         connect.set_will_qos(QoS::QoS1);
-        connect.set_username("apiformes").unwrap();
+        connect.set_username(Arc::from("apiformes")).unwrap();
         connect.set_keep_alive(5);
         connect
             .add_prop(Property::SessionExpiryInterval, MqttPropValue::new_u32(10))

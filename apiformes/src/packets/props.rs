@@ -8,6 +8,8 @@ use super::{
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes};
 use std::collections::HashMap;
+use std::sync::Arc;
+
 bitflags! {
     pub struct PropOwner: u16 {
         const AUTH =            0b0000_0000_0000_0001;
@@ -401,7 +403,7 @@ impl MqttPropValue {
             None
         }
     }
-    pub fn into_str_pair(&self) -> Option<(&str, &str)> {
+    pub fn into_str_pair(&self) -> Option<(&Arc<str>, &Arc<str>)> {
         if let MqttPropValueInner::StringPair(d) = &self.0 {
             Some(d.inner())
         } else {
@@ -443,14 +445,14 @@ impl MqttPropValue {
     pub fn new_u32(u: u32) -> MqttPropValue {
         MqttPropValue(MqttPropValueInner::FourBytesInt(MqttFourBytesInt::new(u)))
     }
-    pub fn new_string(buf: &str) -> Result<MqttPropValue, DataParseError> {
+    pub fn new_string(buf: Arc<str>) -> Result<MqttPropValue, DataParseError> {
         Ok(MqttPropValue(MqttPropValueInner::String(
-            MqttUtf8String::new(buf.to_string())?,
+            MqttUtf8String::new(buf)?,
         )))
     }
-    pub fn new_string_pair(k: &str, v: &str) -> Result<MqttPropValue, DataParseError> {
+    pub fn new_string_pair(k: Arc<str>, v: Arc<str>) -> Result<MqttPropValue, DataParseError> {
         Ok(MqttPropValue(MqttPropValueInner::StringPair(
-            MqttUtf8StringPair::new(k.to_string(), v.to_string())?,
+            MqttUtf8StringPair::new(k, v)?,
         )))
     }
     pub fn new_data<T: Buf>(buf: T) -> Result<MqttPropValue, DataParseError> {
@@ -548,7 +550,7 @@ mod test {
         let res = props
             .checked_insert(
                 Property::ReasonString,
-                MqttPropValue::new_string("Hello").unwrap(),
+                MqttPropValue::new_string(Arc::from("Hello")).unwrap(),
                 PropOwner::CONNECT,
             )
             .err()
@@ -565,7 +567,7 @@ mod test {
         props
             .checked_insert(
                 Property::ReasonString,
-                MqttPropValue::new_string("Hello").unwrap(),
+                MqttPropValue::new_string(Arc::from("Hello")).unwrap(),
                 PropOwner::CONNACK,
             )
             .unwrap();
@@ -589,7 +591,7 @@ mod test {
         props
             .checked_insert(
                 Property::ReasonString,
-                MqttPropValue::new_string("Hello").unwrap(),
+                MqttPropValue::new_string(Arc::from("Hello")).unwrap(),
                 PropOwner::CONNACK,
             )
             .unwrap();
@@ -604,7 +606,7 @@ mod test {
         props
             .checked_insert(
                 Property::ReasonString,
-                MqttPropValue::new_string("World").unwrap(),
+                MqttPropValue::new_string(Arc::from("World")).unwrap(),
                 PropOwner::CONNACK,
             )
             .unwrap();
@@ -652,14 +654,14 @@ mod test {
         props
             .checked_insert(
                 Property::UserProperty,
-                MqttPropValue::new_string("Hello").unwrap(),
+                MqttPropValue::new_string(Arc::from("Hello")).unwrap(),
                 PropOwner::CONNACK,
             )
             .unwrap();
         props
             .checked_insert(
                 Property::UserProperty,
-                MqttPropValue::new_string("World").unwrap(),
+                MqttPropValue::new_string(Arc::from("World")).unwrap(),
                 PropOwner::CONNACK,
             )
             .unwrap();

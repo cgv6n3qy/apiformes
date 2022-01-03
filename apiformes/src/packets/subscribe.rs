@@ -8,6 +8,7 @@ use super::{
 };
 use bitflags::bitflags;
 use bytes::{Buf, BufMut};
+use std::sync::Arc;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[repr(u8)]
@@ -124,13 +125,13 @@ impl Subscribe {
     pub fn packet_identifier(&self) -> u16 {
         self.packet_identifier.inner()
     }
-    pub fn topics_iter(&self) -> impl Iterator<Item = (&str, &SubscriptionOptions)> {
+    pub fn topics_iter(&self) -> impl Iterator<Item = (&Arc<str>, &SubscriptionOptions)> {
         self.topics.iter().map(|(k, v)| (k.inner(), v))
     }
 
     pub fn add_topic(
         &mut self,
-        topic: &str,
+        topic: Arc<str>,
         options: SubscriptionOptions,
     ) -> Result<(), DataParseError> {
         let _: QoS = options.try_into()?;
@@ -235,11 +236,11 @@ mod test {
     fn test_subscribe() {
         let mut subscribe = Subscribe::new(123);
         subscribe
-            .add_topic("foo", SubscriptionOptions::NO_LOCAL)
+            .add_topic(Arc::from("foo"), SubscriptionOptions::NO_LOCAL)
             .unwrap();
         subscribe
             .add_topic(
-                "bar",
+                Arc::from("bar"),
                 SubscriptionOptions::QOS1 | SubscriptionOptions::RETAIN_HANDLING2,
             )
             .unwrap();

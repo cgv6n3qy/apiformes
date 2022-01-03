@@ -4,7 +4,7 @@ use super::parsable::{DataParseError, Parsable, UncheckedParsable};
 use bytes::{Buf, BufMut, Bytes};
 #[cfg(feature = "debug")]
 use std::fmt;
-
+use std::sync::Arc;
 #[derive(Clone)]
 pub(super) struct MqttOneBytesInt(u8);
 impl MqttOneBytesInt {
@@ -148,25 +148,21 @@ impl fmt::Debug for MqttFourBytesInt {
 /// 1.5.4 UTF-8 Encoded String
 #[derive(Clone)]
 pub(super) struct MqttUtf8String {
-    s: String,
+    s: Arc<str>,
 }
 
 impl MqttUtf8String {
-    pub(super) fn new(s: String) -> Result<Self, DataParseError> {
+    pub(super) fn new(s: Arc<str>) -> Result<Self, DataParseError> {
         MqttUtf8String::verify(&s)?;
         Ok(MqttUtf8String { s })
     }
 
-    pub(super) fn unwrap(self) -> String {
+    pub(super) fn unwrap(self) -> Arc<str> {
         self.s
     }
 
-    pub(super) fn inner(&self) -> &str {
+    pub(super) fn inner(&self) -> &Arc<str> {
         &self.s
-    }
-
-    pub(super) fn inner_mut(&mut self) -> &mut String {
-        &mut self.s
     }
 
     /// TODO check if this verify is actually correct
@@ -210,11 +206,12 @@ impl Parsable for MqttUtf8String {
                 available: buf.remaining(),
             });
         }
-        //TODO copy is happening here optimize later
-        let bytes = Vec::from(buf.take(len).chunk());
-        let s = String::from_utf8(bytes).map_err(|_| DataParseError::BadMqttUtf8String)?;
+        let b = buf.take(len);
+        let bytes = b.chunk();
+        let s = std::str::from_utf8(bytes).map_err(|_| DataParseError::BadMqttUtf8String)?;
+        let ret = MqttUtf8String::new(Arc::from(s));
         buf.advance(len);
-        MqttUtf8String::new(s)
+        ret
     }
     fn size(&self) -> usize {
         2 + self.s.len()
@@ -381,13 +378,13 @@ pub(super) struct MqttUtf8StringPair {
 }
 
 impl MqttUtf8StringPair {
-    pub(super) fn new(k: String, v: String) -> Result<Self, DataParseError> {
+    pub(super) fn new(k: Arc<str>, v: Arc<str>) -> Result<Self, DataParseError> {
         Ok(MqttUtf8StringPair {
             name: MqttUtf8String::new(k)?,
             value: MqttUtf8String::new(v)?,
         })
     }
-    pub(super) fn inner(&self) -> (&str, &str) {
+    pub(super) fn inner(&self) -> (&Arc<str>, &Arc<str>) {
         (self.name.inner(), self.value.inner())
     }
 }
@@ -484,19 +481,19 @@ mod test {
     #[test]
     #[cfg(feature = "debug")]
     fn test_format_data_uft8_string() {
-        let s = MqttUtf8String::new("hello".to_string()).unwrap();
+        let s = MqttUtf8String::new(Arc::from("hello")).unwrap();
         assert_eq!(format!("{:?}", s), "\"hello\"");
     }
 
     #[test]
     fn test_serde_data_uft8_string() {
         let mut buf = BytesMut::new();
-        let s1 = MqttUtf8String::new("ABCD".to_string()).unwrap();
+        let s1 = MqttUtf8String::new(Arc::from("ABCD")).unwrap();
         s1.serialize(&mut buf).unwrap();
         assert_eq!(&buf[..], [0x00, 0x04, 0x41, 0x42, 0x43, 0x44]);
         assert_eq!(buf.remaining(), s1.size());
         let s2 = MqttUtf8String::deserialize(&mut buf).unwrap();
-        assert_eq!(s2.inner(), "ABCD");
+        assert_eq!(s2.inner().as_ref(), "ABCD");
         assert_eq!(buf.remaining(), 0);
     }
 
@@ -514,7 +511,7 @@ mod test {
         let mut buf = BytesMut::from(&[0x00, 0x04, 0x41, 0xef, 0xbb, 0xbf][..]);
         let old_buf_size = buf.remaining();
         let s = MqttUtf8String::deserialize(&mut buf).unwrap();
-        assert_eq!(s.inner(), "A\u{feff}");
+        assert_eq!(s.inner().as_ref(), "A\u{feff}");
         assert_eq!(buf.remaining(), 0);
         assert_eq!(old_buf_size, s.size());
     }
@@ -523,14 +520,14 @@ mod test {
     fn test_serde_data_uft8_string_with_control_character() {
         for i in 0..0x1f {
             let c = char::from_u32(i).unwrap();
-            match MqttUtf8String::new(c.to_string()) {
+            match MqttUtf8String::new(c.to_string().into_boxed_str().into()) {
                 Err(DataParseError::BadMqttUtf8String) => (),
                 _ => panic!("Should return an error parsing U+D800"),
             }
         }
         for i in 0x7f..0x9f {
             let c = char::from_u32(i).unwrap();
-            match MqttUtf8String::new(c.to_string()) {
+            match MqttUtf8String::new(c.to_string().into_boxed_str().into()) {
                 Err(DataParseError::BadMqttUtf8String) => (),
                 _ => panic!("Should return an error parsing U+D800"),
             }
@@ -658,12 +655,12 @@ mod test {
     fn test_serde_string_max() {
         let mut b = BytesMut::with_capacity(0x10000);
         b.put_bytes(0x41, 0xffff);
-        let bytes = Vec::from(b.chunk());
-        let s = String::from_utf8(bytes).unwrap();
+        let bytes = b.chunk();
+        let s = Arc::from(std::str::from_utf8(bytes).unwrap());
         MqttUtf8String::new(s).unwrap();
         b.put_u8(0x41);
-        let bytes = Vec::from(b.chunk());
-        let s = String::from_utf8(bytes).unwrap();
+        let bytes = b.chunk();
+        let s = Arc::from(std::str::from_utf8(bytes).unwrap());
         let d = MqttUtf8String::new(s);
         match d {
             Err(DataParseError::BadMqttUtf8String) => (),
@@ -699,8 +696,8 @@ mod test {
     #[cfg(feature = "debug")]
     fn test_format_string_pair() {
         let d = MqttUtf8StringPair {
-            name: MqttUtf8String::new("Hello".to_string()).unwrap(),
-            value: MqttUtf8String::new("world".to_string()).unwrap(),
+            name: MqttUtf8String::new(Arc::from("Hello")).unwrap(),
+            value: MqttUtf8String::new(Arc::from("world")).unwrap(),
         };
         assert_eq!(format!("{:?}", d), "{name: \"Hello\", value: \"world\"}");
     }
@@ -708,13 +705,13 @@ mod test {
     #[test]
     fn test_serde_string_pair() {
         let d1 = MqttUtf8StringPair {
-            name: MqttUtf8String::new("Hello".to_string()).unwrap(),
-            value: MqttUtf8String::new("world".to_string()).unwrap(),
+            name: MqttUtf8String::new(Arc::from("Hello")).unwrap(),
+            value: MqttUtf8String::new(Arc::from("world")).unwrap(),
         };
         let mut b = BytesMut::new();
         d1.serialize(&mut b).unwrap();
         assert_eq!(
-            b,
+            &b[..],
             &[0x0, 0x5, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0, 0x5, 0x77, 0x6f, 0x72, 0x6c, 0x64][..]
         );
         assert_eq!(b.remaining(), d1.size());

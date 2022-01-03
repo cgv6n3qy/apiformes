@@ -23,7 +23,7 @@ async fn starts_subs(cfg: &Config, time_ref: Instant) -> JoinAll<JoinHandle<Subs
         // each subscriber would receive iteration * n_pubs messages
         let mut sub = Subscriber::new(
             &cfg.endpoint,
-            &cfg.topic,
+            cfg.topic.clone(),
             cfg.iterations * cfg.n_pubs,
             time_ref,
         )
@@ -121,7 +121,7 @@ async fn main() {
         cfg.iterations = iterations.parse().unwrap();
     }
     if let Some(topic) = matches.value_of("Topic") {
-        cfg.topic = topic.to_owned();
+        cfg.topic = topic.into();
     }
     if matches.is_present("NoDelay") {
         cfg.sleep = Sleep::NoDelay;

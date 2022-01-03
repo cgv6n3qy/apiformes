@@ -9,7 +9,7 @@ use super::{
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes};
 use std::convert::TryInto;
-
+use std::sync::Arc;
 bitflags! {
     pub struct PublishFlags: u8 {
         const NO_FLAGS  = 0;
@@ -87,7 +87,7 @@ pub struct Publish {
 }
 
 impl Publish {
-    pub fn new(topic_name: &str, payload: Bytes) -> Result<Publish, DataParseError> {
+    pub fn new(topic_name: Arc<str>, payload: Bytes) -> Result<Publish, DataParseError> {
         let topic = MqttTopic::new(topic_name)?;
         if topic.is_wildcard() {
             Err(DataParseError::BadTopic)
@@ -101,7 +101,7 @@ impl Publish {
             })
         }
     }
-    pub fn topic_name(&self) -> &str {
+    pub fn topic_name(&self) -> &Arc<str> {
         self.topic_name.inner()
     }
     pub fn packet_identifier(&self) -> Option<u16> {
@@ -222,13 +222,16 @@ mod tests {
     #[test]
     fn test_bad_publish() {
         assert_eq!(
-            Publish::new("topic/#", Bytes::new()).err().unwrap(),
+            Publish::new(Arc::from("topic/#"), Bytes::new())
+                .err()
+                .unwrap(),
             DataParseError::BadTopic
         );
     }
     #[test]
     fn test_publish() {
-        let mut publish = Publish::new("/my/topic/", Bytes::from(&[1, 2, 3][..])).unwrap();
+        let mut publish =
+            Publish::new(Arc::from("/my/topic/"), Bytes::from(&[1, 2, 3][..])).unwrap();
         assert!(publish.set_packet_identifier(123).is_err());
         publish.set_qos(QoS::QoS1);
         publish.set_packet_identifier(123).unwrap();

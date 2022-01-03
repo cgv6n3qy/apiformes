@@ -18,7 +18,7 @@ pub struct PublisherStats {
 pub struct Publisher {
     time_reference: Instant,
     stream: TcpStream,
-    topic: String,
+    topic: Arc<str>,
     iterations: usize,
     deltas: Vec<Duration>,
     sleep: Sleep,
@@ -44,7 +44,7 @@ impl Publisher {
         let stream = TcpStream::connect(addr).await?;
         Ok(Publisher {
             stream,
-            topic: topic.to_owned(),
+            topic: topic.into(),
             deltas: Vec::with_capacity(iterations),
             iterations,
             time_reference,
@@ -59,7 +59,7 @@ impl Publisher {
             let timestamp = start.duration_since(self.time_reference).as_nanos();
             let payload = timestamp.to_be_bytes();
             let bytes = Bytes::copy_from_slice(&payload[..]);
-            let pub_packet = Publish::new(&self.topic, bytes).unwrap();
+            let pub_packet = Publish::new(self.topic.clone(), bytes).unwrap();
             pub_packet.build().to_bytes(&mut frame).unwrap();
             self.stream.write_all_buf(&mut frame).await?;
             self.deltas.push(Instant::now().duration_since(start));
@@ -74,7 +74,7 @@ impl Publisher {
             let timestamp = start.duration_since(self.time_reference);
             let payload = timestamp.as_micros().to_be_bytes();
             let bytes = Bytes::copy_from_slice(&payload[..]);
-            let pub_packet = Publish::new(&self.topic, bytes).unwrap();
+            let pub_packet = Publish::new(self.topic.clone(), bytes).unwrap();
             pub_packet.build().to_bytes(&mut frame).unwrap();
             self.stream.write_all_buf(&mut frame).await?;
             self.deltas.push(Instant::now().duration_since(start));
@@ -95,7 +95,7 @@ impl Publisher {
             let timestamp = start.duration_since(self.time_reference).as_micros();
             let payload = timestamp.to_be_bytes();
             let bytes = Bytes::copy_from_slice(&payload[..]);
-            let pub_packet = Publish::new(&self.topic, bytes).unwrap();
+            let pub_packet = Publish::new(self.topic.clone(), bytes).unwrap();
             pub_packet.build().to_bytes(&mut frame).unwrap();
             self.stream.write_all_buf(&mut frame).await?;
             self.deltas.push(Instant::now().duration_since(start));
@@ -107,7 +107,7 @@ impl Publisher {
     pub async fn run(mut self) -> Result<PublisherStats> {
         let start = Instant::now();
         let mut frame = BytesMut::with_capacity(128);
-        let mut conn = Connect::new("".to_owned()).unwrap();
+        let mut conn = Connect::new("".into()).unwrap();
         conn.set_clean_start();
         conn.build().to_bytes(&mut frame).unwrap();
         self.stream.write_all_buf(&mut frame).await?;
