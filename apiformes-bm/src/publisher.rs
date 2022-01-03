@@ -102,7 +102,7 @@ impl Publisher {
         conn.set_clean_start();
         let conn = conn.build();
         self.client.send(&conn).await?;
-        // we ignore receiving the ack message
+        drop(self.client.recv().await?); //connack
         match self.sleep {
             Sleep::NoDelay => self.run_nodelay().await?,
             Sleep::ConstantTime(d) => self.run_constant_sleep(d).await?,
