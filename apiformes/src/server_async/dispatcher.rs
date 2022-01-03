@@ -162,16 +162,16 @@ impl Dispatcher {
                 QoS::QoS2 => suback.add_reason_code(SubAckReasonCode::GrantedQoS2),
             }
         }
+        //this is important because we want more threads to have access to topics once we don't
+        //have to write to it
+        drop(topics);
+
         let clients = self.clients.read().await;
         if let Some(c) = clients.get(client) {
             if c.send(suback.build()).is_err() {
                 error!(clientid = client, "Internal Error: tx closed");
             }
         }
-        //this is important because we want more threads to have access to topics once we don't
-        //have to write to it
-        drop(topics);
-
         Ok(())
     }
     async fn process_packet(&mut self, client: &str, packet: Packet) -> Result<(), ServerError> {
