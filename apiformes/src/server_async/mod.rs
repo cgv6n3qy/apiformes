@@ -6,11 +6,11 @@ pub mod error;
 mod packetinfo;
 mod topics;
 
-use crate::packets::prelude::Packet;
 use clients::{Client, ClientManager};
 pub use config::{MqttServerConfig, Permeability};
 use dispatcher::Dispatcher;
 use error::ServerError;
+use packetinfo::PacketInfo;
 use std::mem::size_of;
 use std::{collections::HashMap, sync::Arc};
 use tokio::{
@@ -30,7 +30,7 @@ pub struct MqttServer {
 impl MqttServer {
     #[instrument(name = "MqttServer::new", skip(cfg))]
     pub async fn new(cfg: MqttServerConfig) -> Result<Self, ServerError> {
-        let queue_len = cfg.dispatcher_queue_size / size_of::<(String, Packet)>();
+        let queue_len = cfg.dispatcher_queue_size / size_of::<PacketInfo>();
         let (incoming_tx, incoming_rx) = channel(queue_len);
         let shutdown = Arc::new(Notify::new());
         let cfg = Arc::new(cfg);
