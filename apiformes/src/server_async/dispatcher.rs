@@ -51,7 +51,10 @@ impl Dispatcher {
             match clients.get(client) {
                 Some(c) => c.encrypted() && self.cfg.channel_permeability == Permeability::Strict,
                 None => {
-                    warn!(clientid = client, "Client Prematurely shutdown before its publish request could be processed");
+                    warn!(
+                        clientid = client,
+                        "Client Prematurely shutdown before its publish request could be processed"
+                    );
                     return Ok(());
                 }
             }
