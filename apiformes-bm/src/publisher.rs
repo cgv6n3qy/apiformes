@@ -65,6 +65,7 @@ impl Publisher {
 
     async fn run_constant_sleep(&mut self, sleep_time: Duration) -> Result<()> {
         for _ in 0..self.iterations {
+            sleep(sleep_time).await;
             let start = Instant::now();
             let timestamp = start.duration_since(self.time_reference);
             let payload = timestamp.as_micros().to_be_bytes();
@@ -72,7 +73,6 @@ impl Publisher {
             let pub_packet = Publish::new(self.topic.clone(), bytes).unwrap().build();
             self.client.send(&pub_packet).await?;
             self.deltas.push(Instant::now().duration_since(start));
-            sleep(sleep_time).await;
         }
         Ok(())
     }
@@ -84,6 +84,7 @@ impl Publisher {
         let mut small_rng = SmallRng::from_entropy();
         let sample_space = Uniform::new(min_sleep_time, max_sleep_time);
         for _ in 0..self.iterations {
+            sleep(small_rng.sample(sample_space)).await;
             let start = Instant::now();
             let timestamp = start.duration_since(self.time_reference).as_micros();
             let payload = timestamp.to_be_bytes();
@@ -91,7 +92,6 @@ impl Publisher {
             let pub_packet = Publish::new(self.topic.clone(), bytes).unwrap().build();
             self.client.send(&pub_packet).await?;
             self.deltas.push(Instant::now().duration_since(start));
-            sleep(small_rng.sample(sample_space)).await;
         }
         Ok(())
     }
