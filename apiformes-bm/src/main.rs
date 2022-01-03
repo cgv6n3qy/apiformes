@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate clap;
 
+mod client;
 mod config;
 mod publisher;
 mod subscriber;
