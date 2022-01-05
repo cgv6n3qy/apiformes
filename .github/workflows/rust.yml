@@ -21,6 +21,6 @@ jobs:
     - name: Test Apiformes
       run: (cd apiformes && cargo test --verbose --all-features)
     - name: Build Server
-      run: (cd apiformes-server && cargo build --verbose release)
+      run: (cd apiformes-server && cargo build --verbose --release)
     - name: Build BM
       run: (cd apiformes-bm && cargo build --verbose --release)
