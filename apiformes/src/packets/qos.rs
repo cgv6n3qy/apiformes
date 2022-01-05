@@ -1,3 +1,4 @@
+#[derive(Clone, Copy, PartialOrd, PartialEq)]
 #[repr(u8)]
 pub enum QoS {
     QoS0 = 0,
