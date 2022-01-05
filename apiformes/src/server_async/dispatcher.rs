@@ -1,4 +1,7 @@
-use super::{topics::Topics, Client, MqttServerConfig, Permeability, ServerError};
+use super::{
+    topics::{SubscriptionFlags, TopicsTable},
+    Client, MqttServerConfig, Permeability, ServerError,
+};
 use tokio::sync::{mpsc::Receiver, Notify, RwLock};
 use tokio::task::JoinHandle;
 
@@ -10,7 +13,7 @@ use std::sync::Arc;
 use tracing::{error, instrument, trace, warn};
 
 pub struct Dispatcher {
-    topics: Arc<RwLock<Topics>>,
+    topics: Arc<TopicsTable>,
     cfg: Arc<MqttServerConfig>,
     shutdown: Arc<Notify>,
     clients: Arc<RwLock<HashMap<Arc<str>, Client>>>,
@@ -19,7 +22,7 @@ pub struct Dispatcher {
 
 impl Dispatcher {
     pub fn new(
-        topics: Arc<RwLock<Topics>>,
+        topics: Arc<TopicsTable>,
         cfg: Arc<MqttServerConfig>,
         shutdown: Arc<Notify>,
         clients: Arc<RwLock<HashMap<Arc<str>, Client>>>,
@@ -99,17 +102,26 @@ impl Dispatcher {
             }
         }
         let resp = response.build();
-        if let Some(ids) = self.topics.read().await.get_subscribed(topic) {
-            trace!("Clients registers at {} are {:?}", topic, ids);
-            let clients = self.clients.read().await;
-            for id in ids {
-                if let Some(c) = clients.get(id.as_str()) {
-                    if strict_encryption && !c.encrypted() {
-                        continue;
+        let clients = self.clients.read().await;
+
+        for (target, info) in self.topics.get_all_subscribed(topic).await {
+            if target.as_ref() == client && info.flags.contains(SubscriptionFlags::NO_LOCAL) {
+                continue;
+            }
+            if info.flags.contains(SubscriptionFlags::RETAIN_AS_PUBLISHED) {
+                unimplemented!();
+            }
+            if let Some(c) = clients.get(&target) {
+                if strict_encryption && !c.encrypted() {
+                    continue;
+                }
+                match info.qos {
+                    QoS::QoS0 => {
+                        if c.send(resp.clone()).is_err() {
+                            trace!(clientid = target.as_ref(), "client shutdown: tx closed");
+                        };
                     }
-                    if c.send(resp.clone()).is_err() {
-                        trace!(clientid = id.as_str(), "client shutdown: tx closed");
-                    };
+                    _ => unimplemented!(),
                 }
             }
         }
@@ -117,14 +129,18 @@ impl Dispatcher {
     }
 
     #[instrument(skip_all)]
-    async fn process_subscribe(&mut self, client: &str, sub: Subscribe) -> Result<(), ServerError> {
+    async fn process_subscribe(
+        &mut self,
+        client: &Arc<str>,
+        sub: Subscribe,
+    ) -> Result<(), ServerError> {
         trace!("Processing a subscribe packet");
         let ident = sub.packet_identifier();
         for (k, _) in sub.props_iter() {
             match k {
                 Property::SubscriptionIdentifier => return self.unimplemented(client).await,
                 Property::UserProperty => {
-                    warn!(clientid = client, "Received unknown user property")
+                    warn!(clientid = client.as_ref(), "Received unknown user property")
                 }
                 _ => error!(
                     "Internal Error: {:?} should not be part of publish packet",
@@ -133,11 +149,9 @@ impl Dispatcher {
             }
         }
         let mut suback = SubAck::new(ident);
-        // it is important to drop topics as soon as possible because this is
-        // write RAII
-        let mut topics = self.topics.write().await;
         for (topic, options) in sub.topics_iter() {
             let qos: QoS = (*options).try_into()?;
+            let mut flags = SubscriptionFlags::empty();
             match qos {
                 QoS::QoS0 => (),
                 _ => {
@@ -153,32 +167,38 @@ impl Dispatcher {
                 }
             }
             if options.contains(SubscriptionOptions::NO_LOCAL) {
-                suback.add_reason_code(SubAckReasonCode::ImplementationSpecificError);
+                flags |= SubscriptionFlags::NO_LOCAL;
             }
-            topics.subscribe(topic, client);
+            if options.contains(SubscriptionOptions::RETAIN_AS_PUBLISHED) {
+                flags |= SubscriptionFlags::RETAIN_AS_PUBLISHED;
+            }
+            self.topics
+                .subscribe(client.clone(), topic.clone(), qos, flags)
+                .await;
             match qos {
                 QoS::QoS0 => suback.add_reason_code(SubAckReasonCode::GrantedQoS0),
                 QoS::QoS1 => suback.add_reason_code(SubAckReasonCode::GrantedQoS1),
                 QoS::QoS2 => suback.add_reason_code(SubAckReasonCode::GrantedQoS2),
             }
         }
-        //this is important because we want more threads to have access to topics once we don't
-        //have to write to it
-        drop(topics);
 
         let clients = self.clients.read().await;
         if let Some(c) = clients.get(client) {
             if c.send(suback.build()).is_err() {
-                error!(clientid = client, "Internal Error: tx closed");
+                error!(clientid = client.as_ref(), "Internal Error: tx closed");
             }
         }
         Ok(())
     }
-    async fn process_packet(&mut self, client: &str, packet: Packet) -> Result<(), ServerError> {
+    async fn process_packet(
+        &mut self,
+        client: Arc<str>,
+        packet: Packet,
+    ) -> Result<(), ServerError> {
         match packet {
-            Packet::Publish(publish) => self.process_publish(client, publish).await,
-            Packet::Subscribe(sub) => self.process_subscribe(client, sub).await,
-            _ => self.unimplemented(client).await,
+            Packet::Publish(publish) => self.process_publish(&client, publish).await,
+            Packet::Subscribe(sub) => self.process_subscribe(&client, sub).await,
+            _ => self.unimplemented(&client).await,
         }
     }
     async fn process_forever(mut self) {
@@ -191,7 +211,7 @@ impl Dispatcher {
                 }
             };
             if let Err(e) = self
-                .process_packet(&packetinfo.senderid, packetinfo.packet)
+                .process_packet(packetinfo.senderid.clone(), packetinfo.packet)
                 .await
             {
                 error!(clientid = &*packetinfo.senderid, "{:?}", e);

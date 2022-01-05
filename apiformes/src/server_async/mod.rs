@@ -17,14 +17,14 @@ use tokio::{
     sync::{mpsc::channel, Notify, RwLock},
     task::JoinHandle,
 };
-use topics::Topics;
+use topics::TopicsTable;
 use tracing::{error, info, instrument};
 pub struct MqttServer {
     clients: Arc<RwLock<HashMap<Arc<str>, Client>>>,
     shutdown: Arc<Notify>,
     workers: Vec<JoinHandle<()>>,
     cfg: Arc<MqttServerConfig>,
-    topics: Arc<RwLock<Topics>>,
+    topics: Arc<TopicsTable>,
 }
 
 impl MqttServer {
@@ -38,7 +38,7 @@ impl MqttServer {
         let mut workers =
             ClientManager::start(cfg.clone(), clients.clone(), shutdown.clone(), incoming_tx)
                 .await?;
-        let topics = Arc::new(RwLock::new(Topics::new()));
+        let topics = Arc::new(TopicsTable::new());
         let dispatcher = Dispatcher::new(
             topics.clone(),
             cfg.clone(),
@@ -67,7 +67,7 @@ impl MqttServer {
         }
         info!("Shutting down");
     }
-    pub fn get_topics(&self) -> &RwLock<Topics> {
+    pub fn get_topics(&self) -> &TopicsTable {
         &self.topics
     }
     pub async fn clients(&self) -> Vec<Arc<str>> {
