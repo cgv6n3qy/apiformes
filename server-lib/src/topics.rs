@@ -233,7 +233,14 @@ impl TopicsTable {
             reverse_index: RwLock::new(HashMap::new()),
         }
     }
-
+    fn topic_to_subtopics<'a>(&self, topic: &'a str) -> impl Iterator<Item = &'a str> + Clone {
+        let mut sections = topic.split('/');
+        let starting_point = match sections.next().unwrap() {
+            "" => "/",
+            x => x,
+        };
+        std::iter::once(starting_point).chain(sections)
+    }
     /// `topic`: the topic you want to visit
     /// `create`: create all missing nodes if they does not exist
     /// the first argument of f is the subtopic block to be visited, and the
@@ -247,12 +254,7 @@ impl TopicsTable {
         create: bool,
         run: impl FnOnce(&Block, bool) -> BoxFuture<()> + Send,
     ) {
-        let mut sections = topic.split('/');
-        let starting_point = match sections.next().unwrap() {
-            "" => "/",
-            x => x,
-        };
-        let sections = std::iter::once(starting_point).chain(sections);
+        let sections = self.topic_to_subtopics(topic);
         self.root_block.visit(sections, create, run).await;
     }
 
@@ -345,12 +347,7 @@ impl TopicsTable {
     }
     pub async fn get_all_subscribed(&self, topic: &str) -> HashMap<ClientId, SubscriptionInfo> {
         let mut subs = HashMap::new();
-        let mut sections = topic.split('/');
-        let starting_point = match sections.next().unwrap() {
-            "" => "/",
-            x => x,
-        };
-        let sections = std::iter::once(starting_point).chain(sections);
+        let sections = self.topic_to_subtopics(topic);
         trace!(
             "collected_sections {:?}",
             sections.clone().collect::<Vec<_>>()
