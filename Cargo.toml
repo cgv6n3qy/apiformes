@@ -3,7 +3,7 @@
 members = [
 	"packet",
 	"apiformes",
-	"apiformes-bm",
+	"bm",
 	"apiformes-server",
 ]
 
