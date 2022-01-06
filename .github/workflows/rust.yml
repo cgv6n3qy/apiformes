@@ -16,11 +16,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Build Apiformes
-      run: (cd apiformes && cargo build --verbose)
-    - name: Test Apiformes
-      run: (cd apiformes && cargo test --verbose --all-features)
-    - name: Build Server
-      run: (cd apiformes-server && cargo build --verbose --release)
-    - name: Build BM
-      run: (cd apiformes-bm && cargo build --verbose --release)
+    - name: Build
+      run: (cargo build --verbose)
+    - name: Test
+      run: (cargo test --verbose --all-features)

@@ -1,0 +1,8 @@
+[workspace]
+
+members = [
+	"apiformes",
+	"apiformes-bm",
+	"apiformes-server",
+]
+
