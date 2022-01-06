@@ -129,7 +129,7 @@ impl Block {
     }
 
     #[inline(always)]
-    async fn read<'a>(&'a self) -> RwLockReadGuard<'a, BlockInner> {
+    async fn read(&self) -> RwLockReadGuard<'_, BlockInner> {
         self.inner.read().await
     }
 
@@ -218,6 +218,12 @@ pub struct TopicsTable {
     // notion of performance metric regarding cache hits/
     // cache misses and memory fragmentation which requires
     // more complex benchmarks
+}
+
+impl Default for TopicsTable {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TopicsTable {
