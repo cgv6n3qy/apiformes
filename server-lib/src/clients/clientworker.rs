@@ -1,4 +1,6 @@
-use super::{mqttclient::MqttClient, noiseclient::NoiseClient, Client};
+#[cfg(feature = "noise")]
+use super::noiseclient::NoiseClient;
+use super::{mqttclient::MqttClient, Client};
 use crate::{cfg::*, config::MqttServerConfig, error::ServerError, packetinfo::PacketInfo};
 use apiformes_packet::prelude::*;
 use std::sync::Arc;
@@ -11,6 +13,7 @@ use uuid::Uuid;
 
 pub(super) enum Connection {
     Mqtt(MqttClient),
+    #[cfg(feature = "noise")]
     Noise(Box<NoiseClient>),
 }
 
@@ -18,18 +21,21 @@ impl Connection {
     pub async fn recv(&mut self) -> Result<Packet, ServerError> {
         match self {
             Connection::Mqtt(c) => c.recv().await,
+            #[cfg(feature = "noise")]
             Connection::Noise(n) => n.recv().await,
         }
     }
     pub async fn send(&mut self, p: &Packet) -> Result<(), ServerError> {
         match self {
             Connection::Mqtt(c) => c.send(p).await,
+            #[cfg(feature = "noise")]
             Connection::Noise(n) => n.send(p).await,
         }
     }
     pub fn is_encrypted(&self) -> bool {
         match self {
             Connection::Mqtt(_) => false,
+            #[cfg(feature = "noise")]
             Connection::Noise(_) => true,
         }
     }

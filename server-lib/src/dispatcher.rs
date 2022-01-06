@@ -1,6 +1,8 @@
+#[cfg(feature = "noise")]
+use super::Permeability;
 use super::{
     topics::{SubscriptionFlags, TopicsTable},
-    Client, MqttServerConfig, Permeability, ServerError,
+    Client, MqttServerConfig, ServerError,
 };
 use tokio::sync::{mpsc::Receiver, Notify, RwLock};
 use tokio::task::JoinHandle;
@@ -49,6 +51,7 @@ impl Dispatcher {
     #[instrument(skip_all)]
     async fn process_publish(&mut self, client: &str, publish: Publish) -> Result<(), ServerError> {
         trace!("Processing a publish packet");
+        #[cfg(feature = "noise")]
         let strict_encryption = {
             let clients = self.clients.read().await;
             match clients.get(client) {
@@ -112,6 +115,7 @@ impl Dispatcher {
                 unimplemented!();
             }
             if let Some(c) = clients.get(&target) {
+                #[cfg(feature = "noise")]
                 if strict_encryption && !c.encrypted() {
                     continue;
                 }

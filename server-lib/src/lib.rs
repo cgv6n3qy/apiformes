@@ -7,7 +7,9 @@ mod packetinfo;
 mod topics;
 
 use clients::{Client, ClientManager};
-pub use config::{MqttServerConfig, Permeability};
+pub use config::MqttServerConfig;
+#[cfg(feature = "noise")]
+pub use config::Permeability;
 use dispatcher::Dispatcher;
 use error::ServerError;
 use packetinfo::PacketInfo;

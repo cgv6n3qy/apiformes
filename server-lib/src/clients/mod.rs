@@ -9,6 +9,7 @@ pub use client::Client;
 use clientworker::ClientWorker;
 use futures::{stream::FuturesUnordered, StreamExt};
 pub use mqttclient::MqttListener;
+#[cfg(feature = "noise")]
 pub use noiseclient::NoiseListener;
 use std::collections::HashMap;
 use std::{net::SocketAddr, sync::Arc};
@@ -169,6 +170,7 @@ impl ClientManager {
         }))
     }
 
+    #[cfg(feature = "noise")]
     async fn incomming_noise_listener(
         saddr: &SocketAddr,
         tx: UnboundedSender<ClientWorker>,
