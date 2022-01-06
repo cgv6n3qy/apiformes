@@ -1,5 +1,5 @@
-use crate::packets::prelude::Packet;
 use crate::server_async::ServerError;
+use apiformes_packet::prelude::Packet;
 use std::sync::Arc;
 use tokio::sync::{mpsc::UnboundedSender, Notify};
 #[derive(Clone)]

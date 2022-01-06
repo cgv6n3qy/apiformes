@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+	"packet",
 	"apiformes",
 	"apiformes-bm",
 	"apiformes-server",

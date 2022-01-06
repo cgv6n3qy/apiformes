@@ -6,7 +6,7 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 debug = []
-server_async = ["tokio", "tracing", "serde", "debug", "uuid", "futures", "async-recursion"]
+server_async = ["tokio", "tracing", "serde", "debug", "uuid", "futures", "async-recursion", "apiformes-packet"]
 noise = ["snow", "tokio-util"]
 default =[]
 
@@ -21,3 +21,5 @@ snow = {version="0.8", optional=true}
 tokio-util = {version = "0.6", features=["codec"], optional = true}
 futures={version = "0.3", optional=true}
 async-recursion = {version="0.3", optional=true}
+apiformes-packet = {path="../packet", features = ["debug"], optional=true}
+

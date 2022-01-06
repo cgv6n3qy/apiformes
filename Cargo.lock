@@ -50,6 +50,7 @@ dependencies = [
 name = "apiformes"
 version = "0.1.0"
 dependencies = [
+ "apiformes-packet",
  "async-recursion",
  "bitflags",
  "bytes",
@@ -67,11 +68,20 @@ name = "apiformes-bm"
 version = "0.1.0"
 dependencies = [
  "apiformes",
+ "apiformes-packet",
  "bytes",
  "clap",
  "futures",
  "rand",
  "tokio",
+]
+
+[[package]]
+name = "apiformes-packet"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "bytes",
 ]
 
 [[package]]

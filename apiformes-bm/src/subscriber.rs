@@ -1,5 +1,5 @@
 use super::client::Client;
-use apiformes::packets::prelude::*;
+use apiformes_packet::prelude::*;
 use std::io::Result;
 use std::sync::Arc;
 use std::time::{Duration, Instant};

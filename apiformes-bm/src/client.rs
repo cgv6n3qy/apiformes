@@ -1,4 +1,4 @@
-use apiformes::packets::prelude::*;
+use apiformes_packet::prelude::*;
 use bytes::{Buf, BytesMut};
 use std::io::Cursor;
 use std::io::Result;

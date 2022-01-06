@@ -1,4 +1,4 @@
-use crate::packets::prelude::DataParseError;
+use apiformes_packet::prelude::DataParseError;
 use std::io;
 #[derive(Debug)]
 pub enum ServerError {

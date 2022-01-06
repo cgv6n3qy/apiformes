@@ -1,4 +1,4 @@
-use crate::packets::prelude::Packet;
+use apiformes_packet::prelude::Packet;
 use std::sync::Arc;
 
 pub struct PacketInfo {

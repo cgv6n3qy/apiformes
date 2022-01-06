@@ -1,5 +1,5 @@
 use crate::{client::Client, config::Sleep};
-use apiformes::packets::prelude::*;
+use apiformes_packet::prelude::*;
 use bytes::Bytes;
 use rand::{distributions::Uniform, rngs::SmallRng, Rng, SeedableRng};
 use std::io::Result;

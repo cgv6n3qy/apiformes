@@ -6,7 +6,7 @@ use tokio::sync::{mpsc::Receiver, Notify, RwLock};
 use tokio::task::JoinHandle;
 
 use super::packetinfo::PacketInfo;
-use crate::packets::prelude::*;
+use apiformes_packet::prelude::*;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::sync::Arc;

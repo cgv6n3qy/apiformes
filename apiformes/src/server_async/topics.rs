@@ -1,4 +1,4 @@
-use crate::packets::prelude::*;
+use apiformes_packet::prelude::*;
 use async_recursion::async_recursion;
 use bitflags::bitflags;
 use futures::future::BoxFuture;
