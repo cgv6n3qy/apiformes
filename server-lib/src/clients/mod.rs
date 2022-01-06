@@ -4,7 +4,7 @@ mod mqttclient;
 #[cfg(feature = "noise")]
 mod noiseclient;
 
-use crate::server_async::{config::MqttServerConfig, error::ServerError, packetinfo::PacketInfo};
+use crate::{config::MqttServerConfig, error::ServerError, packetinfo::PacketInfo};
 pub use client::Client;
 use clientworker::ClientWorker;
 use futures::{stream::FuturesUnordered, StreamExt};

@@ -1,7 +1,5 @@
 use super::{mqttclient::MqttClient, noiseclient::NoiseClient, Client};
-use crate::server_async::{
-    cfg::*, config::MqttServerConfig, error::ServerError, packetinfo::PacketInfo,
-};
+use crate::{cfg::*, config::MqttServerConfig, error::ServerError, packetinfo::PacketInfo};
 use apiformes_packet::prelude::*;
 use std::sync::Arc;
 use tokio::sync::{

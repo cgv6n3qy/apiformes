@@ -1,4 +1,4 @@
-use crate::server_async::ServerError;
+use crate::ServerError;
 use apiformes_packet::prelude::Packet;
 use std::sync::Arc;
 use tokio::sync::{mpsc::UnboundedSender, Notify};

@@ -1,4 +1,4 @@
-use apiformes::server_async::{MqttServer, MqttServerConfig, Permeability};
+use apiformes_server_lib::{MqttServer, MqttServerConfig, Permeability};
 use tokio::time::{sleep, Duration};
 use tracing_subscriber::{filter::EnvFilter, FmtSubscriber};
 #[tokio::main]

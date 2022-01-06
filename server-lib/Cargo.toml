@@ -1,0 +1,27 @@
+[package]
+name = "apiformes-server-lib"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+noise = ["snow", "tokio-util"]
+default =[]
+
+
+[dependencies]
+bytes = "1"
+bitflags = "1.3"
+tokio = { version = "1", features = ["net", "io-util", "sync", "macros", "rt", "parking_lot", "time"], default-features = false}
+tracing = "0.1"
+serde = {version = "1", features = ["serde_derive"]}
+uuid = { version = "0.8", features = ["v4"], default-features = false}
+futures="0.3"
+async-recursion = "0.3"
+apiformes-packet = {path="../packet", features = ["debug"]}
+
+snow = {version="0.8", optional=true}
+tokio-util = {version = "0.6", features=["codec"], optional = true}
+

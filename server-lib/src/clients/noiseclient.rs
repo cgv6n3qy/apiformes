@@ -1,5 +1,5 @@
 use super::clientworker::{ClientWorker, Connection};
-use crate::server_async::{
+use crate::{
     cfg::NOISE_PATTERN, config::MqttServerConfig, error::ServerError, packetinfo::PacketInfo,
 };
 use apiformes_packet::prelude::*;

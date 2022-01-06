@@ -47,27 +47,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "apiformes"
-version = "0.1.0"
-dependencies = [
- "apiformes-packet",
- "async-recursion",
- "bitflags",
- "bytes",
- "futures",
- "serde",
- "snow",
- "tokio",
- "tokio-util",
- "tracing",
- "uuid",
-]
-
-[[package]]
 name = "apiformes-bm"
 version = "0.1.0"
 dependencies = [
- "apiformes",
  "apiformes-packet",
  "bytes",
  "clap",
@@ -88,10 +70,27 @@ dependencies = [
 name = "apiformes-server"
 version = "0.1.0"
 dependencies = [
- "apiformes",
+ "apiformes-server-lib",
  "tokio",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "apiformes-server-lib"
+version = "0.1.0"
+dependencies = [
+ "apiformes-packet",
+ "async-recursion",
+ "bitflags",
+ "bytes",
+ "futures",
+ "serde",
+ "snow",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

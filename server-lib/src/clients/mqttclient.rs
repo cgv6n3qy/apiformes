@@ -1,5 +1,5 @@
 use super::clientworker::{ClientWorker, Connection};
-use crate::server_async::{config::MqttServerConfig, error::ServerError, packetinfo::PacketInfo};
+use crate::{config::MqttServerConfig, error::ServerError, packetinfo::PacketInfo};
 use apiformes_packet::prelude::*;
 use bytes::{Buf, BytesMut};
 use std::io::Cursor;
