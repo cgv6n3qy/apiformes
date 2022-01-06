@@ -30,7 +30,7 @@ impl Subscriber {
         Ok(Subscriber {
             time_reference,
             client: Client::new(addr).await?,
-            topic: topic,
+            topic,
             deltas: Vec::with_capacity(iterations),
             iterations,
             trips_time: Vec::with_capacity(iterations),
