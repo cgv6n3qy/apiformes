@@ -15,8 +15,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Install stable toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+       toolchain: stable
+       override: true
     - name: Build
       run: (cargo build --verbose)
     - name: Test
-      run: (cargo test --verbose --all-features)
+      uses: actions-rs/tarpaulin@v0.1
+      with:
+       version: '0.19.0'
+       args: '--verbose'
+    - name : Upload coverage
+      uses: codecov/codecov-action@v2
+      with:
+       token: ${{secrets.CODECOV_TOKEN}}
