@@ -273,7 +273,7 @@ mod test {
         let mut connect = Connect::new(Arc::from("Client1")).unwrap();
         connect.set_clean_start();
         connect.set_will(Will::new(Arc::from("Hello"), Bytes::from(&b"World"[..])).unwrap());
-        connect.set_will_qos(QoS::QoS1);
+        connect.set_will_qos(QoS::QoS1).unwrap();
         connect.set_username(Arc::from("apiformes")).unwrap();
         connect.set_keep_alive(5);
         connect
