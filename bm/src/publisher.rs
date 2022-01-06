@@ -50,15 +50,19 @@ impl Publisher {
             release_signal,
         })
     }
+    async fn run_once(&mut self) -> Result<()> {
+        let start = Instant::now();
+        let timestamp = start.duration_since(self.time_reference).as_nanos();
+        let payload = timestamp.to_be_bytes();
+        let bytes = Bytes::copy_from_slice(&payload[..]);
+        let pub_packet = Publish::new(self.topic.clone(), bytes).unwrap().build();
+        self.client.send(&pub_packet).await?;
+        self.deltas.push(Instant::now().duration_since(start));
+        Ok(())
+    }
     async fn run_nodelay(&mut self) -> Result<()> {
         for _ in 0..self.iterations {
-            let start = Instant::now();
-            let timestamp = start.duration_since(self.time_reference).as_nanos();
-            let payload = timestamp.to_be_bytes();
-            let bytes = Bytes::copy_from_slice(&payload[..]);
-            let pub_packet = Publish::new(self.topic.clone(), bytes).unwrap().build();
-            self.client.send(&pub_packet).await?;
-            self.deltas.push(Instant::now().duration_since(start));
+            self.run_once().await?;
         }
         Ok(())
     }
@@ -66,13 +70,7 @@ impl Publisher {
     async fn run_constant_sleep(&mut self, sleep_time: Duration) -> Result<()> {
         for _ in 0..self.iterations {
             sleep(sleep_time).await;
-            let start = Instant::now();
-            let timestamp = start.duration_since(self.time_reference);
-            let payload = timestamp.as_micros().to_be_bytes();
-            let bytes = Bytes::copy_from_slice(&payload[..]);
-            let pub_packet = Publish::new(self.topic.clone(), bytes).unwrap().build();
-            self.client.send(&pub_packet).await?;
-            self.deltas.push(Instant::now().duration_since(start));
+            self.run_once().await?;
         }
         Ok(())
     }
@@ -85,13 +83,7 @@ impl Publisher {
         let sample_space = Uniform::new(min_sleep_time, max_sleep_time);
         for _ in 0..self.iterations {
             sleep(small_rng.sample(sample_space)).await;
-            let start = Instant::now();
-            let timestamp = start.duration_since(self.time_reference).as_micros();
-            let payload = timestamp.to_be_bytes();
-            let bytes = Bytes::copy_from_slice(&payload[..]);
-            let pub_packet = Publish::new(self.topic.clone(), bytes).unwrap().build();
-            self.client.send(&pub_packet).await?;
-            self.deltas.push(Instant::now().duration_since(start));
+            self.run_once().await?;
         }
         Ok(())
     }
