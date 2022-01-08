@@ -54,6 +54,9 @@ impl MqttSerialize for Auth {
 impl MqttDeserialize for Auth {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
+        if length < Auth::min_size() - MqttVariableBytesInt::min_size() {
+            return Err(DataParseError::BadAuthMessage);
+        }
         if buf.remaining() < length {
             return Err(DataParseError::InsufficientBuffer {
                 needed: length,
@@ -61,7 +64,7 @@ impl MqttDeserialize for Auth {
             });
         }
         let mut buf = buf.take(length);
-        let reason_code = AuthReasonCode::deserialize(&mut buf)?;
+        let reason_code = AuthReasonCode::unchecked_deserialize(&mut buf)?;
         let props = Properties::deserialize(&mut buf)?;
         if !props.is_valid_for(PropOwner::AUTH) {
             return Err(DataParseError::BadProperty);

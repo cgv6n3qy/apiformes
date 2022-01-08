@@ -1,6 +1,7 @@
 #[derive(Debug, PartialEq)]
 pub enum DataParseError {
     InsufficientBuffer { needed: usize, available: usize },
+    BadAuthMessage,
     BadMqttUtf8String,
     BadMqttVariableBytesInt,
     BadMqttBinaryData,
