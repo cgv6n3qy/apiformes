@@ -80,33 +80,18 @@ impl MqttFourBytesInt {
     }
 }
 
-impl UncheckedParsable for MqttFourBytesInt {
-    fn unchecked_serialize<T: BufMut>(&self, buf: &mut T) {
-        buf.put_u32(self.0)
+impl MqttUncheckedDeserialize for MqttFourBytesInt {
+    fn fixed_size() -> usize {
+        4
     }
-    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Self {
-        MqttFourBytesInt(buf.get_u32())
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+        Ok(MqttFourBytesInt(buf.get_u32()))
     }
 }
 
-impl Parsable for MqttFourBytesInt {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        self.unchecked_serialize(buf);
-        Ok(())
-    }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let size = buf.remaining();
-        if size < 4 {
-            Err(DataParseError::InsufficientBuffer {
-                needed: 4,
-                available: size,
-            })
-        } else {
-            Ok(Self::unchecked_deserialize(buf))
-        }
-    }
-    fn size(&self) -> usize {
-        4
+impl MqttSerialize for MqttFourBytesInt {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
+        buf.put_u32(self.0)
     }
 }
 
@@ -429,7 +414,7 @@ mod test {
     fn test_serde_data_four_bytes_int() {
         let mut buf = BytesMut::new();
         let i1 = MqttFourBytesInt(0xccddeeff);
-        i1.serialize(&mut buf).unwrap();
+        i1.serialize(&mut buf);
         assert_eq!(&buf[..], [0xcc, 0xdd, 0xee, 0xff]);
         assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttFourBytesInt::deserialize(&mut buf).unwrap();

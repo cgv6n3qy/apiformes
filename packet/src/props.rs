@@ -491,7 +491,10 @@ impl MqttPropValue {
                 v.serialize(buf);
                 Ok(())
             }
-            MqttPropValueInner::FourBytesInt(v) => v.serialize(buf),
+            MqttPropValueInner::FourBytesInt(v) => {
+                v.serialize(buf);
+                Ok(())
+            }
             MqttPropValueInner::String(v) => v.serialize(buf),
             MqttPropValueInner::StringPair(v) => v.serialize(buf),
             MqttPropValueInner::Data(v) => v.serialize(buf),
