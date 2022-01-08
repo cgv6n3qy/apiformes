@@ -139,7 +139,7 @@ impl Parsable for Packet {
                     ((PacketType::Auth as u8) << 4) | PacketType::Auth.fixed_flags(),
                 );
                 b.serialize(buf);
-                p.serialize(buf)?;
+                p.serialize(buf);
             }
         }
         Ok(())
