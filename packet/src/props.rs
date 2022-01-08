@@ -496,7 +496,10 @@ impl MqttPropValue {
             MqttPropValueInner::StringPair(v) => v.serialize(buf),
             MqttPropValueInner::Data(v) => v.serialize(buf),
             MqttPropValueInner::VarInt(v) => v.serialize(buf),
-            MqttPropValueInner::TwoBytesInt(v) => v.serialize(buf),
+            MqttPropValueInner::TwoBytesInt(v) => {
+                v.serialize(buf);
+                Ok(())
+            }
         }
     }
     fn deserialize<T: Buf>(buf: &mut T, ty: MqttPropValueType) -> Result<Self, DataParseError> {

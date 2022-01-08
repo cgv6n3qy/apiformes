@@ -2,7 +2,7 @@ use super::{
     data::{MqttTwoBytesInt, MqttVariableBytesInt},
     error::DataParseError,
     packet::Packet,
-    parsable::Parsable,
+    parsable::*,
     props::{MqttPropValue, PropOwner, Properties, Property},
     reason::UnsubAckReasonCode,
 };
@@ -60,7 +60,7 @@ impl Parsable for UnsubAck {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
         length.serialize(buf)?;
-        self.packet_identifier.serialize(buf)?;
+        self.packet_identifier.serialize(buf);
         self.props.serialize(buf)?;
         for r in &self.reason_codes {
             r.serialize(buf)?;

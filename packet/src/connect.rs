@@ -278,7 +278,7 @@ impl Parsable for Connect {
 
         self.flags.serialize(buf)?;
 
-        self.keep_alive.serialize(buf)?;
+        self.keep_alive.serialize(buf);
 
         self.props.serialize(buf)?;
 

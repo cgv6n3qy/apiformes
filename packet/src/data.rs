@@ -45,33 +45,18 @@ impl MqttTwoBytesInt {
     }
 }
 
-impl UncheckedParsable for MqttTwoBytesInt {
-    fn unchecked_serialize<T: BufMut>(&self, buf: &mut T) {
-        buf.put_u16(self.0)
+impl MqttUncheckedDeserialize for MqttTwoBytesInt {
+    fn fixed_size() -> usize {
+        2
     }
-    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Self {
-        MqttTwoBytesInt(buf.get_u16())
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+        Ok(MqttTwoBytesInt(buf.get_u16()))
     }
 }
 
-impl Parsable for MqttTwoBytesInt {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        self.unchecked_serialize(buf);
-        Ok(())
-    }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let size = buf.remaining();
-        if size < 2 {
-            Err(DataParseError::InsufficientBuffer {
-                needed: 2,
-                available: size,
-            })
-        } else {
-            Ok(Self::unchecked_deserialize(buf))
-        }
-    }
-    fn size(&self) -> usize {
-        2
+impl MqttSerialize for MqttTwoBytesInt {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
+        buf.put_u16(self.0)
     }
 }
 
@@ -413,7 +398,7 @@ mod test {
     fn test_serde_data_two_bytes_int() {
         let mut buf = BytesMut::new();
         let i1 = MqttTwoBytesInt(0xff);
-        i1.serialize(&mut buf).unwrap();
+        i1.serialize(&mut buf);
         assert_eq!(&buf[..], [0x00, 0xff]);
         assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttTwoBytesInt::deserialize(&mut buf).unwrap();
