@@ -50,7 +50,7 @@ impl Parsable for Packet {
                     ((PacketType::ConnAck as u8) << 4) | PacketType::ConnAck.fixed_flags(),
                 );
                 b.serialize(buf);
-                p.serialize(buf)?;
+                p.serialize(buf);
             }
             Packet::Publish(p) => {
                 let b = MqttOneBytesInt::new(((PacketType::Publish as u8) << 4) | p.flags().bits());

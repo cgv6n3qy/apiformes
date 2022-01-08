@@ -14,18 +14,19 @@ bitflags! {
         const SESSION_PRESENT = 0b0000_0001;
     }
 }
-impl Parsable for ConnAckFlags {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for ConnAckFlags {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         let flags = MqttOneBytesInt::new(self.bits());
         flags.serialize(buf);
-        Ok(())
     }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let raw_flags = MqttOneBytesInt::deserialize(buf)?;
-        ConnAckFlags::from_bits(raw_flags.inner()).ok_or(DataParseError::BadConnectMessage)
-    }
-    fn size(&self) -> usize {
+}
+impl MqttUncheckedDeserialize for ConnAckFlags {
+    fn fixed_size() -> usize {
         1
+    }
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+        let raw_flags = MqttOneBytesInt::unchecked_deserialize(buf)?;
+        ConnAckFlags::from_bits(raw_flags.inner()).ok_or(DataParseError::BadConnectMessage)
     }
 }
 
@@ -82,15 +83,17 @@ impl ConnAck {
     }
 }
 
-impl Parsable for ConnAck {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
+impl MqttSerialize for ConnAck {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
+        let length = MqttVariableBytesInt::new(self.partial_size() as u32)
+            .expect("Somehow you allocated a table that is larger than the allowed size");
         length.serialize(buf);
-        self.flags.serialize(buf)?;
+        self.flags.serialize(buf);
         self.reason_code.serialize(buf);
         self.props.serialize(buf);
-        Ok(())
     }
+}
+impl MqttDeserialize for ConnAck {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
         if buf.remaining() < length {
@@ -117,6 +120,14 @@ impl Parsable for ConnAck {
             Err(DataParseError::BadConnectMessage)
         }
     }
+}
+impl MqttSize for ConnAck {
+    fn min_size() -> usize {
+        MqttVariableBytesInt::min_size()
+            + ConnAckFlags::min_size()
+            + ConnAckReasonCode::min_size()
+            + Properties::min_size()
+    }
     fn size(&self) -> usize {
         let size = self.partial_size();
         MqttVariableBytesInt::new(size as u32).unwrap().size() + size
@@ -140,7 +151,7 @@ mod test {
             )
             .unwrap();
         let mut b = BytesMut::new();
-        connack.serialize(&mut b).unwrap();
+        connack.serialize(&mut b);
         assert_eq!(b.remaining(), connack.size());
         assert_eq!(
             b,
@@ -155,7 +166,7 @@ mod test {
         );
         let connack2 = ConnAck::deserialize(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        connack2.serialize(&mut b2).unwrap();
+        connack2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
 }
