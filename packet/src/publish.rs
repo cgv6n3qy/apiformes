@@ -2,7 +2,7 @@ use super::{
     data::{MqttOneBytesInt, MqttTwoBytesInt, MqttVariableBytesInt},
     error::DataParseError,
     packet::Packet,
-    parsable::Parsable,
+    parsable::*,
     props::{MqttPropValue, PropOwner, Properties, Property},
     qos::QoS,
     topic::MqttTopic,
@@ -24,7 +24,8 @@ bitflags! {
 impl Parsable for PublishFlags {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let flags = MqttOneBytesInt::new(self.bits());
-        flags.serialize(buf)
+        flags.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let raw_flags = MqttOneBytesInt::deserialize(buf)?;

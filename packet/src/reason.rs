@@ -1,4 +1,4 @@
-use super::{data::MqttOneBytesInt, error::DataParseError, parsable::Parsable};
+use super::{data::MqttOneBytesInt, error::DataParseError, parsable::*};
 use bytes::{Buf, BufMut};
 
 //2.4 Reason Code
@@ -32,7 +32,8 @@ pub enum ConnAckReasonCode {
 impl Parsable for ConnAckReasonCode {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let b = MqttOneBytesInt::new(*self as u8);
-        b.serialize(buf)
+        b.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let b = MqttOneBytesInt::deserialize(buf)?;
@@ -85,7 +86,8 @@ pub enum PubAckReasonCode {
 impl Parsable for PubAckReasonCode {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let b = MqttOneBytesInt::new(*self as u8);
-        b.serialize(buf)
+        b.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let b = MqttOneBytesInt::deserialize(buf)?;
@@ -120,7 +122,8 @@ pub enum PubRelReasonCode {
 impl Parsable for PubRelReasonCode {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let b = MqttOneBytesInt::new(*self as u8);
-        b.serialize(buf)
+        b.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let b = MqttOneBytesInt::deserialize(buf)?;
@@ -154,7 +157,8 @@ pub enum UnsubAckReasonCode {
 impl Parsable for UnsubAckReasonCode {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let b = MqttOneBytesInt::new(*self as u8);
-        b.serialize(buf)
+        b.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let b = MqttOneBytesInt::deserialize(buf)?;
@@ -186,7 +190,8 @@ pub enum AuthReasonCode {
 impl Parsable for AuthReasonCode {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let b = MqttOneBytesInt::new(*self as u8);
-        b.serialize(buf)
+        b.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let b = MqttOneBytesInt::deserialize(buf)?;
@@ -241,7 +246,8 @@ pub enum DisconnectReasonCode {
 impl Parsable for DisconnectReasonCode {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let b = MqttOneBytesInt::new(*self as u8);
-        b.serialize(buf)
+        b.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let b = MqttOneBytesInt::deserialize(buf)?;
@@ -305,7 +311,8 @@ pub enum SubAckReasonCode {
 impl Parsable for SubAckReasonCode {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let b = MqttOneBytesInt::new(*self as u8);
-        b.serialize(buf)
+        b.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let b = MqttOneBytesInt::deserialize(buf)?;

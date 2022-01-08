@@ -4,7 +4,7 @@ use super::{
     },
     error::DataParseError,
     packet::Packet,
-    parsable::Parsable,
+    parsable::*,
     props::{MqttPropValue, PropOwner, Properties, Property},
     qos::QoS,
 };
@@ -33,7 +33,8 @@ bitflags! {
 impl Parsable for ConnectFlags {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let flags = MqttOneBytesInt::new(self.bits());
-        flags.serialize(buf)
+        flags.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let raw_flags = MqttOneBytesInt::deserialize(buf)?;
@@ -273,7 +274,7 @@ impl Parsable for Connect {
         protocol_name.serialize(buf)?;
 
         let protocol_version = MqttOneBytesInt::new(5);
-        protocol_version.serialize(buf)?;
+        protocol_version.serialize(buf);
 
         self.flags.serialize(buf)?;
 

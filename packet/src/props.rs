@@ -4,7 +4,7 @@ use super::{
         MqttUtf8StringPair, MqttVariableBytesInt,
     },
     error::DataParseError,
-    parsable::Parsable,
+    parsable::*,
 };
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes};
@@ -483,8 +483,14 @@ impl MqttPropValue {
     }
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         match &self.0 {
-            MqttPropValueInner::Bool(v) => v.serialize(buf),
-            MqttPropValueInner::Byte(v) => v.serialize(buf),
+            MqttPropValueInner::Bool(v) => {
+                v.serialize(buf);
+                Ok(())
+            }
+            MqttPropValueInner::Byte(v) => {
+                v.serialize(buf);
+                Ok(())
+            }
             MqttPropValueInner::FourBytesInt(v) => v.serialize(buf),
             MqttPropValueInner::String(v) => v.serialize(buf),
             MqttPropValueInner::StringPair(v) => v.serialize(buf),

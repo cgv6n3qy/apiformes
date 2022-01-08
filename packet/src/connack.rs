@@ -2,7 +2,7 @@ use super::{
     data::{MqttOneBytesInt, MqttVariableBytesInt},
     error::DataParseError,
     packet::Packet,
-    parsable::Parsable,
+    parsable::*,
     props::{MqttPropValue, PropOwner, Properties, Property},
     reason::ConnAckReasonCode,
 };
@@ -17,7 +17,8 @@ bitflags! {
 impl Parsable for ConnAckFlags {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let flags = MqttOneBytesInt::new(self.bits());
-        flags.serialize(buf)
+        flags.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let raw_flags = MqttOneBytesInt::deserialize(buf)?;
