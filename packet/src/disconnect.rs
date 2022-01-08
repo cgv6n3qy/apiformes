@@ -47,7 +47,7 @@ impl Parsable for Disconnect {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
         length.serialize(buf);
-        self.reason_code.serialize(buf)?;
+        self.reason_code.serialize(buf);
         self.props.serialize(buf)?;
         Ok(())
     }

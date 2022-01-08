@@ -63,7 +63,7 @@ impl Parsable for SubAck {
         self.packet_identifier.serialize(buf);
         self.props.serialize(buf)?;
         for r in &self.reason_codes {
-            r.serialize(buf)?;
+            r.serialize(buf);
         }
         Ok(())
     }

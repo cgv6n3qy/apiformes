@@ -29,14 +29,19 @@ pub enum ConnAckReasonCode {
     ConnectionRateExceeded = 0x9f,
 }
 
-impl Parsable for ConnAckReasonCode {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for ConnAckReasonCode {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         let b = MqttOneBytesInt::new(*self as u8);
         b.serialize(buf);
-        Ok(())
     }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let b = MqttOneBytesInt::deserialize(buf)?;
+}
+
+impl MqttUncheckedDeserialize for ConnAckReasonCode {
+    fn fixed_size() -> usize {
+        1
+    }
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+        let b = MqttOneBytesInt::unchecked_deserialize(buf)?;
         match b.inner() {
             0x0 => Ok(ConnAckReasonCode::Success),
             0x80 => Ok(ConnAckReasonCode::UnspecifiedError),
@@ -63,9 +68,6 @@ impl Parsable for ConnAckReasonCode {
             _ => Err(DataParseError::BadReasonCode),
         }
     }
-    fn size(&self) -> usize {
-        1
-    }
 }
 
 //2.4 Reason Code
@@ -82,15 +84,18 @@ pub enum PubAckReasonCode {
     QuotaExceeded = 0x97,
     PayloadFormatInvalid = 0x99,
 }
-
-impl Parsable for PubAckReasonCode {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for PubAckReasonCode {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         let b = MqttOneBytesInt::new(*self as u8);
         b.serialize(buf);
-        Ok(())
     }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let b = MqttOneBytesInt::deserialize(buf)?;
+}
+impl MqttUncheckedDeserialize for PubAckReasonCode {
+    fn fixed_size() -> usize {
+        1
+    }
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+        let b = MqttOneBytesInt::unchecked_deserialize(buf)?;
         match b.inner() {
             0x0 => Ok(PubAckReasonCode::Success),
             0x10 => Ok(PubAckReasonCode::NoMatchingSubscribers),
@@ -104,10 +109,8 @@ impl Parsable for PubAckReasonCode {
             _ => Err(DataParseError::BadReasonCode),
         }
     }
-    fn size(&self) -> usize {
-        1
-    }
 }
+
 //2.4 Reason Code
 pub type PubRecReasonCode = PubAckReasonCode;
 
@@ -119,22 +122,24 @@ pub enum PubRelReasonCode {
     PacketIdentifierNotFound = 0x92,
 }
 
-impl Parsable for PubRelReasonCode {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for PubRelReasonCode {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         let b = MqttOneBytesInt::new(*self as u8);
         b.serialize(buf);
-        Ok(())
     }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let b = MqttOneBytesInt::deserialize(buf)?;
+}
+
+impl MqttUncheckedDeserialize for PubRelReasonCode {
+    fn fixed_size() -> usize {
+        1
+    }
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+        let b = MqttOneBytesInt::unchecked_deserialize(buf)?;
         match b.inner() {
             0x0 => Ok(PubRelReasonCode::Success),
             0x92 => Ok(PubRelReasonCode::PacketIdentifierNotFound),
             _ => Err(DataParseError::BadReasonCode),
         }
-    }
-    fn size(&self) -> usize {
-        1
     }
 }
 
@@ -154,14 +159,19 @@ pub enum UnsubAckReasonCode {
     PacketIdentifierInUse = 0x91,
 }
 
-impl Parsable for UnsubAckReasonCode {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for UnsubAckReasonCode {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         let b = MqttOneBytesInt::new(*self as u8);
         b.serialize(buf);
-        Ok(())
     }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let b = MqttOneBytesInt::deserialize(buf)?;
+}
+
+impl MqttUncheckedDeserialize for UnsubAckReasonCode {
+    fn fixed_size() -> usize {
+        1
+    }
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+        let b = MqttOneBytesInt::unchecked_deserialize(buf)?;
         match b.inner() {
             0x0 => Ok(UnsubAckReasonCode::Success),
             0x11 => Ok(UnsubAckReasonCode::NoSubscriptionExisted),
@@ -173,9 +183,6 @@ impl Parsable for UnsubAckReasonCode {
             _ => Err(DataParseError::BadReasonCode),
         }
     }
-    fn size(&self) -> usize {
-        1
-    }
 }
 
 //2.4 Reason Code
@@ -186,24 +193,25 @@ pub enum AuthReasonCode {
     ContinueAuthentication = 0x18,
     ReAuthenticate = 0x19,
 }
-
-impl Parsable for AuthReasonCode {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for AuthReasonCode {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         let b = MqttOneBytesInt::new(*self as u8);
         b.serialize(buf);
-        Ok(())
     }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let b = MqttOneBytesInt::deserialize(buf)?;
+}
+
+impl MqttUncheckedDeserialize for AuthReasonCode {
+    fn fixed_size() -> usize {
+        1
+    }
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+        let b = MqttOneBytesInt::unchecked_deserialize(buf)?;
         match b.inner() {
             0x0 => Ok(AuthReasonCode::Success),
             0x18 => Ok(AuthReasonCode::ContinueAuthentication),
             0x19 => Ok(AuthReasonCode::ReAuthenticate),
             _ => Err(DataParseError::BadReasonCode),
         }
-    }
-    fn size(&self) -> usize {
-        1
     }
 }
 
@@ -243,14 +251,18 @@ pub enum DisconnectReasonCode {
     WildcardSubscriptionsNotSupported = 0xa2,
 }
 
-impl Parsable for DisconnectReasonCode {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for DisconnectReasonCode {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         let b = MqttOneBytesInt::new(*self as u8);
         b.serialize(buf);
-        Ok(())
     }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let b = MqttOneBytesInt::deserialize(buf)?;
+}
+impl MqttUncheckedDeserialize for DisconnectReasonCode {
+    fn fixed_size() -> usize {
+        1
+    }
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+        let b = MqttOneBytesInt::unchecked_deserialize(buf)?;
         match b.inner() {
             0x0 => Ok(DisconnectReasonCode::NormalDisconnection),
             0x04 => Ok(DisconnectReasonCode::DisconnectWithWillMessage),
@@ -285,9 +297,6 @@ impl Parsable for DisconnectReasonCode {
             _ => Err(DataParseError::BadReasonCode),
         }
     }
-    fn size(&self) -> usize {
-        1
-    }
 }
 
 //2.4 Reason Code
@@ -308,14 +317,18 @@ pub enum SubAckReasonCode {
     WildcardSubscriptionsNotSupported = 0xa2,
 }
 
-impl Parsable for SubAckReasonCode {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for SubAckReasonCode {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         let b = MqttOneBytesInt::new(*self as u8);
         b.serialize(buf);
-        Ok(())
     }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let b = MqttOneBytesInt::deserialize(buf)?;
+}
+impl MqttUncheckedDeserialize for SubAckReasonCode {
+    fn fixed_size() -> usize {
+        1
+    }
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+        let b = MqttOneBytesInt::unchecked_deserialize(buf)?;
         match b.inner() {
             0x0 => Ok(SubAckReasonCode::GrantedQoS0),
             0x1 => Ok(SubAckReasonCode::GrantedQoS1),
@@ -331,8 +344,5 @@ impl Parsable for SubAckReasonCode {
             0xa2 => Ok(SubAckReasonCode::WildcardSubscriptionsNotSupported),
             _ => Err(DataParseError::BadReasonCode),
         }
-    }
-    fn size(&self) -> usize {
-        1
     }
 }
