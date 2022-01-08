@@ -126,7 +126,7 @@ impl Will {
 impl Parsable for Will {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         self.props.serialize(buf)?;
-        self.topic.serialize(buf)?;
+        self.topic.serialize(buf);
         self.payload.serialize(buf)
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
@@ -271,7 +271,7 @@ impl Parsable for Connect {
 
         //TODO lazy static to avoid reallocating
         let protocol_name = MqttUtf8String::new(Arc::from("MQTT"))?;
-        protocol_name.serialize(buf)?;
+        protocol_name.serialize(buf);
 
         let protocol_version = MqttOneBytesInt::new(5);
         protocol_version.serialize(buf);
@@ -282,14 +282,14 @@ impl Parsable for Connect {
 
         self.props.serialize(buf)?;
 
-        self.clientid.serialize(buf)?;
+        self.clientid.serialize(buf);
 
         if let Some(will) = self.will_info.as_ref() {
             will.serialize(buf)?;
         }
 
         if let Some(username) = self.username.as_ref() {
-            username.serialize(buf)?;
+            username.serialize(buf);
         }
 
         if let Some(password) = self.password.as_ref() {

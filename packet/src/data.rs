@@ -149,12 +149,14 @@ impl MqttUtf8String {
     }
 }
 
-impl Parsable for MqttUtf8String {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for MqttUtf8String {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         buf.put_u16(self.s.len() as u16);
         buf.put_slice(self.s.as_bytes());
-        Ok(())
     }
+}
+
+impl MqttDeserialize for MqttUtf8String {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let len = MqttTwoBytesInt::deserialize(buf)?.inner() as usize;
         if buf.remaining() < len {
@@ -169,6 +171,12 @@ impl Parsable for MqttUtf8String {
         let ret = MqttUtf8String::new(Arc::from(s));
         buf.advance(len);
         ret
+    }
+}
+
+impl MqttSize for MqttUtf8String {
+    fn min_size() -> usize {
+        1
     }
     fn size(&self) -> usize {
         2 + self.s.len()
@@ -348,8 +356,9 @@ impl MqttUtf8StringPair {
 
 impl Parsable for MqttUtf8StringPair {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        self.name.serialize(buf)?;
-        self.value.serialize(buf)
+        self.name.serialize(buf);
+        self.value.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         Ok(MqttUtf8StringPair {
@@ -446,7 +455,7 @@ mod test {
     fn test_serde_data_uft8_string() {
         let mut buf = BytesMut::new();
         let s1 = MqttUtf8String::new(Arc::from("ABCD")).unwrap();
-        s1.serialize(&mut buf).unwrap();
+        s1.serialize(&mut buf);
         assert_eq!(&buf[..], [0x00, 0x04, 0x41, 0x42, 0x43, 0x44]);
         assert_eq!(buf.remaining(), s1.size());
         let s2 = MqttUtf8String::deserialize(&mut buf).unwrap();

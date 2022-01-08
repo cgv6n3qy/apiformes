@@ -1,4 +1,4 @@
-use super::{data::MqttUtf8String, error::DataParseError, parsable::Parsable};
+use super::{data::MqttUtf8String, error::DataParseError, parsable::*};
 use bytes::{Buf, BufMut};
 use std::sync::Arc;
 
@@ -58,7 +58,8 @@ impl MqttTopic {
 
 impl Parsable for MqttTopic {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        self.0.serialize(buf)
+        self.0.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let string = MqttUtf8String::deserialize(buf)?;
