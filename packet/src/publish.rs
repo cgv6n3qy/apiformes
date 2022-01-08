@@ -172,7 +172,7 @@ impl Publish {
 impl Parsable for Publish {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
-        length.serialize(buf)?;
+        length.serialize(buf);
         self.topic_name.serialize(buf)?;
         if let Some(packet_identifier) = &self.packet_identifier {
             packet_identifier.serialize(buf);

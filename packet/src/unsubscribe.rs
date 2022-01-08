@@ -59,7 +59,7 @@ impl Unsubscribe {
 impl Parsable for Unsubscribe {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
-        length.serialize(buf)?;
+        length.serialize(buf);
         self.packet_identifier.serialize(buf);
         self.props.serialize(buf)?;
         for t in &self.topics {

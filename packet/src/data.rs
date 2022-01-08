@@ -213,9 +213,8 @@ impl MqttVariableBytesInt {
         Ok(())
     }
 }
-
-impl Parsable for MqttVariableBytesInt {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for MqttVariableBytesInt {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         let mut x = self.i;
         loop {
             let mut encoded_byte = (x & 0x7f) as u8; // same as x = x%128 but sans the mod part
@@ -228,8 +227,10 @@ impl Parsable for MqttVariableBytesInt {
                 break;
             }
         }
-        Ok(())
     }
+}
+
+impl MqttDeserialize for MqttVariableBytesInt {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let mut multiplier: u32 = 0;
         let mut value = 0;
@@ -253,6 +254,12 @@ impl Parsable for MqttVariableBytesInt {
             }
         }
         Ok(MqttVariableBytesInt { i: value })
+    }
+}
+
+impl MqttSize for MqttVariableBytesInt {
+    fn min_size() -> usize {
+        1
     }
     fn size(&self) -> usize {
         if self.i < 0x80 {
@@ -511,7 +518,7 @@ mod test {
     fn test_serde_data_variable_byte_int_11() {
         let mut buf = BytesMut::new();
         let i1 = MqttVariableBytesInt::new(0x11).unwrap();
-        i1.serialize(&mut buf).unwrap();
+        i1.serialize(&mut buf);
         assert_eq!(&buf[..], [0x11]);
         assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
@@ -523,7 +530,7 @@ mod test {
     fn test_serde_data_variable_byte_int_80() {
         let mut buf = BytesMut::new();
         let i1 = MqttVariableBytesInt::new(128).unwrap();
-        i1.serialize(&mut buf).unwrap();
+        i1.serialize(&mut buf);
         assert_eq!(&buf[..], [0x80, 0x1]);
         assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
@@ -535,7 +542,7 @@ mod test {
     fn test_serde_data_variable_byte_int_3fff() {
         let mut buf = BytesMut::new();
         let i1 = MqttVariableBytesInt::new(0x3fff).unwrap();
-        i1.serialize(&mut buf).unwrap();
+        i1.serialize(&mut buf);
         assert_eq!(&buf[..], [0xff, 0x7f]);
         assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
@@ -547,7 +554,7 @@ mod test {
     fn test_serde_data_variable_byte_int_4000() {
         let mut buf = BytesMut::new();
         let i1 = MqttVariableBytesInt::new(0x4000).unwrap();
-        i1.serialize(&mut buf).unwrap();
+        i1.serialize(&mut buf);
         assert_eq!(&buf[..], [0x80, 0x80, 0x01]);
         assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
@@ -559,7 +566,7 @@ mod test {
     fn test_serde_data_variable_byte_int_1fffff() {
         let mut buf = BytesMut::new();
         let i1 = MqttVariableBytesInt::new(0x1fffff).unwrap();
-        i1.serialize(&mut buf).unwrap();
+        i1.serialize(&mut buf);
         assert_eq!(&buf[..], [0xff, 0xff, 0x7f]);
         assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
@@ -571,7 +578,7 @@ mod test {
     fn test_serde_data_variable_byte_int_200000() {
         let mut buf = BytesMut::new();
         let i1 = MqttVariableBytesInt::new(0x200000).unwrap();
-        i1.serialize(&mut buf).unwrap();
+        i1.serialize(&mut buf);
         assert_eq!(&buf[..], [0x80, 0x80, 0x80, 0x01]);
         assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
@@ -583,7 +590,7 @@ mod test {
     fn test_serde_data_variable_byte_int_fffffff() {
         let mut buf = BytesMut::new();
         let i1 = MqttVariableBytesInt::new(0xfffffff).unwrap();
-        i1.serialize(&mut buf).unwrap();
+        i1.serialize(&mut buf);
         assert_eq!(&buf[..], [0xff, 0xff, 0xff, 0x7f]);
         assert_eq!(buf.remaining(), i1.size());
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
@@ -594,7 +601,7 @@ mod test {
     fn test_serde_data_variable_byte_int_invalid() {
         let mut buf = BytesMut::new();
         let i1 = MqttVariableBytesInt::new(0xfffffff).unwrap();
-        i1.serialize(&mut buf).unwrap();
+        i1.serialize(&mut buf);
         assert_eq!(&buf[..], [0xff, 0xff, 0xff, 0x7f]);
         let i2 = MqttVariableBytesInt::deserialize(&mut buf).unwrap();
         assert_eq!(i2.i, i1.i);

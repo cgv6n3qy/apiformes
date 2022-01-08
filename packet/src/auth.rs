@@ -2,7 +2,7 @@ use super::{
     data::MqttVariableBytesInt,
     error::DataParseError,
     packet::Packet,
-    parsable::Parsable,
+    parsable::*,
     props::{MqttPropValue, PropOwner, Properties, Property},
     reason::AuthReasonCode,
 };
@@ -46,7 +46,7 @@ impl Auth {
 impl Parsable for Auth {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
-        length.serialize(buf)?;
+        length.serialize(buf);
         self.reason_code.serialize(buf)?;
         self.props.serialize(buf)
     }

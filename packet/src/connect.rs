@@ -267,7 +267,7 @@ impl Connect {
 impl Parsable for Connect {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
-        length.serialize(buf)?;
+        length.serialize(buf);
 
         //TODO lazy static to avoid reallocating
         let protocol_name = MqttUtf8String::new(Arc::from("MQTT"))?;

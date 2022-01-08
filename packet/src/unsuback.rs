@@ -59,7 +59,7 @@ impl UnsubAck {
 impl Parsable for UnsubAck {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
-        length.serialize(buf)?;
+        length.serialize(buf);
         self.packet_identifier.serialize(buf);
         self.props.serialize(buf)?;
         for r in &self.reason_codes {

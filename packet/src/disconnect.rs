@@ -2,7 +2,7 @@ use super::{
     data::MqttVariableBytesInt,
     error::DataParseError,
     packet::Packet,
-    parsable::Parsable,
+    parsable::*,
     props::{MqttPropValue, PropOwner, Properties, Property},
     reason::DisconnectReasonCode,
 };
@@ -46,9 +46,10 @@ impl Disconnect {
 impl Parsable for Disconnect {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
-        length.serialize(buf)?;
+        length.serialize(buf);
         self.reason_code.serialize(buf)?;
-        self.props.serialize(buf)
+        self.props.serialize(buf)?;
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;

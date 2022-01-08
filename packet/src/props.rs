@@ -118,7 +118,7 @@ impl Properties {
 impl Parsable for Properties {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let size = MqttVariableBytesInt::new(self.size as u32)?;
-        size.serialize(buf)?;
+        size.serialize(buf);
         for (key, value) in self.iter() {
             key.serialize(buf)?;
             value.serialize(buf)?;
@@ -326,7 +326,8 @@ impl Property {
 impl Parsable for Property {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         let i = MqttVariableBytesInt::new(*self as u32)?;
-        i.serialize(buf)
+        i.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let i = MqttVariableBytesInt::deserialize(buf)?.inner();
@@ -501,7 +502,10 @@ impl MqttPropValue {
             }
             MqttPropValueInner::StringPair(v) => v.serialize(buf),
             MqttPropValueInner::Data(v) => v.serialize(buf),
-            MqttPropValueInner::VarInt(v) => v.serialize(buf),
+            MqttPropValueInner::VarInt(v) => {
+                v.serialize(buf);
+                Ok(())
+            }
             MqttPropValueInner::TwoBytesInt(v) => {
                 v.serialize(buf);
                 Ok(())
