@@ -177,7 +177,7 @@ impl Parsable for Publish {
         if let Some(packet_identifier) = &self.packet_identifier {
             packet_identifier.serialize(buf);
         }
-        self.props.serialize(buf)?;
+        self.props.serialize(buf);
         buf.put(self.payload.clone());
         Ok(())
     }

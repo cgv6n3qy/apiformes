@@ -88,7 +88,8 @@ impl Parsable for ConnAck {
         length.serialize(buf);
         self.flags.serialize(buf)?;
         self.reason_code.serialize(buf);
-        self.props.serialize(buf)
+        self.props.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;

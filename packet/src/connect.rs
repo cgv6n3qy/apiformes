@@ -125,7 +125,7 @@ impl Will {
 }
 impl Parsable for Will {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        self.props.serialize(buf)?;
+        self.props.serialize(buf);
         self.topic.serialize(buf);
         self.payload.serialize(buf);
         Ok(())
@@ -281,7 +281,7 @@ impl Parsable for Connect {
 
         self.keep_alive.serialize(buf);
 
-        self.props.serialize(buf)?;
+        self.props.serialize(buf);
 
         self.clientid.serialize(buf);
 

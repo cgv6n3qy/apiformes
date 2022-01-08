@@ -61,7 +61,7 @@ impl Parsable for Unsubscribe {
         let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
         length.serialize(buf);
         self.packet_identifier.serialize(buf);
-        self.props.serialize(buf)?;
+        self.props.serialize(buf);
         for t in &self.topics {
             t.serialize(buf)?;
         }

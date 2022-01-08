@@ -115,16 +115,18 @@ impl Properties {
     }
 }
 
-impl Parsable for Properties {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        let size = MqttVariableBytesInt::new(self.size as u32)?;
+impl MqttSerialize for Properties {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
+        let size = MqttVariableBytesInt::new(self.size as u32)
+            .expect("Somehow you allocated a table that is larger than the allowed size");
         size.serialize(buf);
         for (key, value) in self.iter() {
-            key.serialize(buf)?;
-            value.serialize(buf)?;
+            key.serialize(buf);
+            value.serialize(buf);
         }
-        Ok(())
     }
+}
+impl MqttDeserialize for Properties {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let mut size = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
         let mut table = Properties::new();
@@ -137,6 +139,11 @@ impl Parsable for Properties {
             table.insert(key, value)?;
         }
         Ok(table)
+    }
+}
+impl MqttSize for Properties {
+    fn min_size() -> usize {
+        MqttVariableBytesInt::min_size()
     }
     fn size(&self) -> usize {
         MqttVariableBytesInt::new(self.size as u32).unwrap().size() + self.size
@@ -323,12 +330,15 @@ impl Property {
     }
 }
 
-impl Parsable for Property {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        let i = MqttVariableBytesInt::new(*self as u32)?;
+impl MqttSerialize for Property {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
+        let i = MqttVariableBytesInt::new(*self as u32).expect(
+            "This should not throw and error deserialize because all possible values are hardcoded",
+        );
         i.serialize(buf);
-        Ok(())
     }
+}
+impl MqttDeserialize for Property {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let i = MqttVariableBytesInt::deserialize(buf)?.inner();
         match i {
@@ -361,6 +371,11 @@ impl Parsable for Property {
             0x2a => Ok(Property::SharedSubscriptionAvailable),
             _ => Err(DataParseError::BadProperty),
         }
+    }
+}
+impl MqttSize for Property {
+    fn min_size() -> usize {
+        MqttVariableBytesInt::min_size()
     }
     fn size(&self) -> usize {
         // unwrap here is justified because all the values are hardcoded
@@ -482,42 +497,6 @@ impl MqttPropValue {
             MqttPropValueInner::TwoBytesInt(_) => MqttPropValueType::TwoBytesInt,
         }
     }
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        match &self.0 {
-            MqttPropValueInner::Bool(v) => {
-                v.serialize(buf);
-                Ok(())
-            }
-            MqttPropValueInner::Byte(v) => {
-                v.serialize(buf);
-                Ok(())
-            }
-            MqttPropValueInner::FourBytesInt(v) => {
-                v.serialize(buf);
-                Ok(())
-            }
-            MqttPropValueInner::String(v) => {
-                v.serialize(buf);
-                Ok(())
-            }
-            MqttPropValueInner::StringPair(v) => {
-                v.serialize(buf);
-                Ok(())
-            }
-            MqttPropValueInner::Data(v) => {
-                v.serialize(buf);
-                Ok(())
-            }
-            MqttPropValueInner::VarInt(v) => {
-                v.serialize(buf);
-                Ok(())
-            }
-            MqttPropValueInner::TwoBytesInt(v) => {
-                v.serialize(buf);
-                Ok(())
-            }
-        }
-    }
     fn deserialize<T: Buf>(buf: &mut T, ty: MqttPropValueType) -> Result<Self, DataParseError> {
         let res = match ty {
             MqttPropValueType::Bool => MqttPropValueInner::Bool(MqttOneBytesInt::deserialize(buf)?),
@@ -541,6 +520,27 @@ impl MqttPropValue {
         };
         Ok(MqttPropValue(res))
     }
+}
+
+impl MqttSerialize for MqttPropValue {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
+        match &self.0 {
+            MqttPropValueInner::Bool(v) => v.serialize(buf),
+            MqttPropValueInner::Byte(v) => v.serialize(buf),
+            MqttPropValueInner::FourBytesInt(v) => v.serialize(buf),
+            MqttPropValueInner::String(v) => v.serialize(buf),
+            MqttPropValueInner::StringPair(v) => v.serialize(buf),
+            MqttPropValueInner::Data(v) => v.serialize(buf),
+            MqttPropValueInner::VarInt(v) => v.serialize(buf),
+            MqttPropValueInner::TwoBytesInt(v) => v.serialize(buf),
+        }
+    }
+}
+
+impl MqttSize for MqttPropValue {
+    fn min_size() -> usize {
+        MqttOneBytesInt::min_size() // bool or byte
+    }
     fn size(&self) -> usize {
         match &self.0 {
             MqttPropValueInner::Bool(_) => 1,
@@ -554,7 +554,6 @@ impl MqttPropValue {
         }
     }
 }
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -583,7 +582,7 @@ mod test {
             .unwrap();
         assert_eq!(res, DataParseError::BadProperty);
         let mut b = BytesMut::new();
-        props.serialize(&mut b).unwrap();
+        props.serialize(&mut b);
         assert_eq!(b, &[0x0][..]);
     }
 
@@ -598,7 +597,7 @@ mod test {
             )
             .unwrap();
         let mut b = BytesMut::new();
-        props.serialize(&mut b).unwrap();
+        props.serialize(&mut b);
         assert_eq!(
             b,
             &[0x08, 0x1f, 0x00, 0x05, 0x48, 0x65, 0x6c, 0x6c, 0x6f][..]
@@ -607,7 +606,7 @@ mod test {
 
         let props2 = Properties::deserialize(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        props2.serialize(&mut b2).unwrap();
+        props2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
 
@@ -622,7 +621,7 @@ mod test {
             )
             .unwrap();
         let mut b = BytesMut::new();
-        props.serialize(&mut b).unwrap();
+        props.serialize(&mut b);
         assert_eq!(
             b,
             &[0x08, 0x1f, 0x00, 0x05, 0x48, 0x65, 0x6c, 0x6c, 0x6f][..]
@@ -637,7 +636,7 @@ mod test {
             )
             .unwrap();
         let mut b = BytesMut::new();
-        props.serialize(&mut b).unwrap();
+        props.serialize(&mut b);
         assert_eq!(
             b,
             &[0x08, 0x1f, 0x00, 0x05, 0x57, 0x6f, 0x72, 0x6c, 0x64][..]
@@ -692,7 +691,7 @@ mod test {
             )
             .unwrap();
         let mut b = BytesMut::new();
-        props.serialize(&mut b).unwrap();
+        props.serialize(&mut b);
         assert_eq!(
             b,
             &[
@@ -703,7 +702,7 @@ mod test {
         assert_eq!(b.remaining(), props.size());
         let props2 = Properties::deserialize(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        props2.serialize(&mut b2).unwrap();
+        props2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
 }
