@@ -368,17 +368,23 @@ impl MqttUtf8StringPair {
     }
 }
 
-impl Parsable for MqttUtf8StringPair {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for MqttUtf8StringPair {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         self.name.serialize(buf);
         self.value.serialize(buf);
-        Ok(())
     }
+}
+impl MqttDeserialize for MqttUtf8StringPair {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         Ok(MqttUtf8StringPair {
             name: MqttUtf8String::deserialize(buf)?,
             value: MqttUtf8String::deserialize(buf)?,
         })
+    }
+}
+impl MqttSize for MqttUtf8StringPair {
+    fn min_size() -> usize {
+        MqttUtf8String::min_size() + MqttUtf8String::min_size()
     }
     fn size(&self) -> usize {
         self.name.size() + self.value.size()
@@ -689,7 +695,7 @@ mod test {
             value: MqttUtf8String::new(Arc::from("world")).unwrap(),
         };
         let mut b = BytesMut::new();
-        d1.serialize(&mut b).unwrap();
+        d1.serialize(&mut b);
         assert_eq!(
             &b[..],
             &[0x0, 0x5, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0, 0x5, 0x77, 0x6f, 0x72, 0x6c, 0x64][..]

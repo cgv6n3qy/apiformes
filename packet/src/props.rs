@@ -500,7 +500,10 @@ impl MqttPropValue {
                 v.serialize(buf);
                 Ok(())
             }
-            MqttPropValueInner::StringPair(v) => v.serialize(buf),
+            MqttPropValueInner::StringPair(v) => {
+                v.serialize(buf);
+                Ok(())
+            }
             MqttPropValueInner::Data(v) => {
                 v.serialize(buf);
                 Ok(())
