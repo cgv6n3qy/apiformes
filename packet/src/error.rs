@@ -18,4 +18,5 @@ pub enum DataParseError {
     BadUnsubscribeMessage,
     BadUnsubAckMessage,
     BadPing,
+    BadConnAckMessage,
 }

@@ -96,6 +96,10 @@ impl MqttSerialize for ConnAck {
 impl MqttDeserialize for ConnAck {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
+        if length < ConnAck::min_size() - MqttVariableBytesInt::min_size() {
+            // one for flags, one for reason_code and one for empty props
+            return Err(DataParseError::BadConnAckMessage);
+        }
         if buf.remaining() < length {
             return Err(DataParseError::InsufficientBuffer {
                 needed: length,
@@ -103,8 +107,8 @@ impl MqttDeserialize for ConnAck {
             });
         }
         let mut buf = buf.take(length);
-        let flags = ConnAckFlags::deserialize(&mut buf)?;
-        let reason_code = ConnAckReasonCode::deserialize(&mut buf)?;
+        let flags = ConnAckFlags::unchecked_deserialize(&mut buf)?;
+        let reason_code = ConnAckReasonCode::unchecked_deserialize(&mut buf)?;
         let props = Properties::deserialize(&mut buf)?;
         if !props.is_valid_for(PropOwner::CONNACK) {
             return Err(DataParseError::BadProperty);
