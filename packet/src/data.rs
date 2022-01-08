@@ -303,13 +303,14 @@ impl MqttBinaryData {
         Ok(())
     }
 }
-
-impl Parsable for MqttBinaryData {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for MqttBinaryData {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         buf.put_u16(self.d.remaining() as u16);
         buf.put_slice(self.d.chunk());
-        Ok(())
     }
+}
+
+impl MqttDeserialize for MqttBinaryData {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let len = MqttTwoBytesInt::deserialize(buf)?.inner() as usize;
         if buf.remaining() < len {
@@ -320,6 +321,12 @@ impl Parsable for MqttBinaryData {
         }
         let bytes = buf.copy_to_bytes(len);
         MqttBinaryData::new(bytes)
+    }
+}
+
+impl MqttSize for MqttBinaryData {
+    fn min_size() -> usize {
+        2
     }
     fn size(&self) -> usize {
         2 + self.d.remaining()
@@ -658,7 +665,7 @@ mod test {
     fn test_serde_data() {
         let d = MqttBinaryData::new(Bytes::from(&[0x1, 0x2, 0x3, 0x4][..])).unwrap();
         let mut b = BytesMut::new();
-        d.serialize(&mut b).unwrap();
+        d.serialize(&mut b);
         assert_eq!(b, &[0x0, 0x4, 0x1, 0x2, 0x3, 0x4][..]);
         let d2 = MqttBinaryData::deserialize(&mut b).unwrap();
         assert_eq!(d.inner(), d2.inner());

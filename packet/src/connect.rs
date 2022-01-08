@@ -127,7 +127,8 @@ impl Parsable for Will {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
         self.props.serialize(buf)?;
         self.topic.serialize(buf);
-        self.payload.serialize(buf)
+        self.payload.serialize(buf);
+        Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let props = Properties::deserialize(buf)?;
@@ -293,7 +294,7 @@ impl Parsable for Connect {
         }
 
         if let Some(password) = self.password.as_ref() {
-            password.serialize(buf)?;
+            password.serialize(buf);
         }
         Ok(())
     }
