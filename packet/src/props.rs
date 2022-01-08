@@ -3,7 +3,8 @@ use super::{
         MqttBinaryData, MqttFourBytesInt, MqttOneBytesInt, MqttTwoBytesInt, MqttUtf8String,
         MqttUtf8StringPair, MqttVariableBytesInt,
     },
-    parsable::{DataParseError, Parsable},
+    error::DataParseError,
+    parsable::Parsable,
 };
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, Bytes};

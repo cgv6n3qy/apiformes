@@ -1,7 +1,8 @@
 use super::{
     data::MqttVariableBytesInt,
+    error::DataParseError,
     packet::Packet,
-    parsable::{DataParseError, Parsable},
+    parsable::Parsable,
     props::{MqttPropValue, PropOwner, Properties, Property},
     reason::AuthReasonCode,
 };

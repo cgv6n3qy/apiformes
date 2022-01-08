@@ -3,6 +3,7 @@ pub mod connack;
 pub mod connect;
 mod data;
 pub mod disconnect;
+pub mod error;
 mod helpers;
 pub mod packet;
 mod packet_type;

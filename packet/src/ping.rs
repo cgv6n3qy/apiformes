@@ -1,7 +1,5 @@
 use super::{
-    data::MqttVariableBytesInt,
-    packet::Packet,
-    parsable::{DataParseError, Parsable},
+    data::MqttVariableBytesInt, error::DataParseError, packet::Packet, parsable::Parsable,
 };
 use bytes::{Buf, BufMut};
 

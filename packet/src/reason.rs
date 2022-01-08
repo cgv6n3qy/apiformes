@@ -1,7 +1,4 @@
-use super::{
-    data::MqttOneBytesInt,
-    parsable::{DataParseError, Parsable},
-};
+use super::{data::MqttOneBytesInt, error::DataParseError, parsable::Parsable};
 use bytes::{Buf, BufMut};
 
 //2.4 Reason Code

@@ -1,22 +1,8 @@
 use super::{
-    auth::Auth,
-    connack::ConnAck,
-    connect::Connect,
-    data::MqttOneBytesInt,
-    disconnect::Disconnect,
-    helpers::bits_u8,
-    packet_type::PacketType,
-    parsable::{DataParseError, Parsable},
-    ping::Ping,
-    puback::PubAck,
-    pubcomp::PubComp,
-    publish::Publish,
-    pubrec::PubRec,
-    pubrel::PubRel,
-    suback::SubAck,
-    subscribe::Subscribe,
-    unsuback::UnsubAck,
-    unsubscribe::Unsubscribe,
+    auth::Auth, connack::ConnAck, connect::Connect, data::MqttOneBytesInt, disconnect::Disconnect,
+    error::DataParseError, helpers::bits_u8, packet_type::PacketType, parsable::Parsable,
+    ping::Ping, puback::PubAck, pubcomp::PubComp, publish::Publish, pubrec::PubRec, pubrel::PubRel,
+    suback::SubAck, subscribe::Subscribe, unsuback::UnsubAck, unsubscribe::Unsubscribe,
 };
 use bytes::{Buf, BufMut};
 

@@ -1,4 +1,4 @@
-use super::{helpers::bits_u8, parsable::DataParseError};
+use super::{error::DataParseError, helpers::bits_u8};
 
 ///2.1.2 MQTT Control Packet type
 #[repr(u8)]

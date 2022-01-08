@@ -1,6 +1,9 @@
 // Data representation for MQTT v5.0 as per section 1.5
 
-use super::parsable::{DataParseError, Parsable, UncheckedParsable};
+use super::{
+    error::DataParseError,
+    parsable::{Parsable, UncheckedParsable},
+};
 use bytes::{Buf, BufMut, Bytes};
 #[cfg(feature = "debug")]
 use std::fmt;

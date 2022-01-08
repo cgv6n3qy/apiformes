@@ -1,7 +1,4 @@
-use super::{
-    data::MqttUtf8String,
-    parsable::{DataParseError, Parsable},
-};
+use super::{data::MqttUtf8String, error::DataParseError, parsable::Parsable};
 use bytes::{Buf, BufMut};
 use std::sync::Arc;
 

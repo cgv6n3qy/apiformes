@@ -2,8 +2,9 @@ use super::{
     data::{
         MqttBinaryData, MqttOneBytesInt, MqttTwoBytesInt, MqttUtf8String, MqttVariableBytesInt,
     },
+    error::DataParseError,
     packet::Packet,
-    parsable::{DataParseError, Parsable},
+    parsable::Parsable,
     props::{MqttPropValue, PropOwner, Properties, Property},
     qos::QoS,
 };
