@@ -25,18 +25,34 @@ pub enum Packet {
     Auth(Auth),
 }
 impl Packet {
-    pub fn to_bytes<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+    pub fn to_bytes<T: BufMut>(&self, buf: &mut T) {
         self.serialize(buf)
     }
     pub fn from_bytes<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         Packet::deserialize(buf)
     }
     pub fn frame_len(&self) -> usize {
-        self.size()
+        1 + match self {
+            Packet::Connect(p) => p.size(),
+            Packet::ConnAck(p) => p.size(),
+            Packet::Publish(p) => p.size(),
+            Packet::PubAck(p) => p.size(),
+            Packet::PubRec(p) => p.size(),
+            Packet::PubRel(p) => p.size(),
+            Packet::PubComp(p) => p.size(),
+            Packet::Subscribe(p) => p.size(),
+            Packet::SubAck(p) => p.size(),
+            Packet::Unsubscribe(p) => p.size(),
+            Packet::UnsubAck(p) => p.size(),
+            Packet::PingReq(p) => p.size(),
+            Packet::PingRes(p) => p.size(),
+            Packet::Disconnect(p) => p.size(),
+            Packet::Auth(p) => p.size(),
+        }
     }
 }
-impl Parsable for Packet {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for Packet {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         match self {
             Packet::Connect(p) => {
                 let b = MqttOneBytesInt::new(
@@ -142,8 +158,9 @@ impl Parsable for Packet {
                 p.serialize(buf);
             }
         }
-        Ok(())
     }
+}
+impl MqttDeserialize for Packet {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         if buf.remaining() < 2 {
             return Err(DataParseError::InsufficientBuffer {
@@ -177,26 +194,12 @@ impl Parsable for Packet {
             PacketType::Auth => Ok(Packet::Auth(Auth::deserialize(buf)?)),
         }
     }
+}
+/*
     fn size(&self) -> usize {
-        1 + match self {
-            Packet::Connect(p) => p.size(),
-            Packet::ConnAck(p) => p.size(),
-            Packet::Publish(p) => p.size(),
-            Packet::PubAck(p) => p.size(),
-            Packet::PubRec(p) => p.size(),
-            Packet::PubRel(p) => p.size(),
-            Packet::PubComp(p) => p.size(),
-            Packet::Subscribe(p) => p.size(),
-            Packet::SubAck(p) => p.size(),
-            Packet::Unsubscribe(p) => p.size(),
-            Packet::UnsubAck(p) => p.size(),
-            Packet::PingReq(p) => p.size(),
-            Packet::PingRes(p) => p.size(),
-            Packet::Disconnect(p) => p.size(),
-            Packet::Auth(p) => p.size(),
         }
     }
-}
+}*/
 #[cfg(test)]
 mod test {
     use super::super::prelude::*;
@@ -207,8 +210,8 @@ mod test {
     fn test_auth_packet() {
         let auth = Auth::new(AuthReasonCode::ReAuthenticate).build();
         let mut b = BytesMut::new();
-        auth.to_bytes(&mut b).unwrap();
-        assert_eq!(b.remaining(), auth.size());
+        auth.to_bytes(&mut b);
+        assert_eq!(b.remaining(), auth.frame_len());
         assert_eq!(
             b,
             &[
@@ -220,7 +223,7 @@ mod test {
         );
         let auth2 = Packet::from_bytes(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        auth2.to_bytes(&mut b2).unwrap();
+        auth2.to_bytes(&mut b2);
         assert_eq!(b, b2);
     }
     #[test]
@@ -236,8 +239,8 @@ mod test {
             .unwrap();
         let connack = connack.build();
         let mut b = BytesMut::new();
-        connack.to_bytes(&mut b).unwrap();
-        assert_eq!(b.remaining(), connack.size());
+        connack.to_bytes(&mut b);
+        assert_eq!(b.remaining(), connack.frame_len());
         assert_eq!(
             b,
             &[
@@ -252,7 +255,7 @@ mod test {
         );
         let connack2 = Packet::from_bytes(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        connack2.to_bytes(&mut b2).unwrap();
+        connack2.to_bytes(&mut b2);
         assert_eq!(b, b2);
     }
     #[test]
@@ -268,8 +271,8 @@ mod test {
             .unwrap();
         let connect = connect.build();
         let mut b = BytesMut::new();
-        connect.to_bytes(&mut b).unwrap();
-        assert_eq!(b.remaining(), connect.size());
+        connect.to_bytes(&mut b);
+        assert_eq!(b.remaining(), connect.frame_len());
         assert_eq!(
             b,
             &[
@@ -289,15 +292,15 @@ mod test {
         );
         let connect2 = Packet::from_bytes(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        connect2.serialize(&mut b2).unwrap();
+        connect2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
     #[test]
     fn test_disconnect_packet() {
         let disconnect = Disconnect::new(DisconnectReasonCode::UnspecifiedError).build();
         let mut b = BytesMut::new();
-        disconnect.to_bytes(&mut b).unwrap();
-        assert_eq!(b.remaining(), disconnect.size());
+        disconnect.to_bytes(&mut b);
+        assert_eq!(b.remaining(), disconnect.frame_len());
         assert_eq!(
             b,
             &[
@@ -309,15 +312,15 @@ mod test {
         );
         let disconnect2 = Packet::from_bytes(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        disconnect2.serialize(&mut b2).unwrap();
+        disconnect2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
     #[test]
     fn test_ping_req_packet() {
         let ping_req = Ping::new().build_req();
         let mut b = BytesMut::new();
-        ping_req.to_bytes(&mut b).unwrap();
-        assert_eq!(b.remaining(), ping_req.size());
+        ping_req.to_bytes(&mut b);
+        assert_eq!(b.remaining(), ping_req.frame_len());
         assert_eq!(
             b,
             &[
@@ -327,15 +330,15 @@ mod test {
         );
         let ping_req2 = Packet::from_bytes(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        ping_req2.serialize(&mut b2).unwrap();
+        ping_req2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
     #[test]
     fn test_ping_res_packet() {
         let ping_res = Ping::new().build_res();
         let mut b = BytesMut::new();
-        ping_res.to_bytes(&mut b).unwrap();
-        assert_eq!(b.remaining(), ping_res.size());
+        ping_res.to_bytes(&mut b);
+        assert_eq!(b.remaining(), ping_res.frame_len());
         assert_eq!(
             b,
             &[
@@ -345,7 +348,7 @@ mod test {
         );
         let ping_res2 = Packet::from_bytes(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        ping_res2.serialize(&mut b2).unwrap();
+        ping_res2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
 }

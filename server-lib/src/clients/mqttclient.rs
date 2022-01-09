@@ -69,7 +69,7 @@ impl MqttClient {
     }
     pub async fn send(&mut self, p: &Packet) -> Result<(), ServerError> {
         let mut bytes = BytesMut::with_capacity(p.frame_len());
-        p.to_bytes(&mut bytes)?;
+        p.to_bytes(&mut bytes);
         self.tcp_writer.write_all_buf(&mut bytes).await?;
         Ok(())
     }

@@ -66,7 +66,7 @@ impl NoiseClient {
     }
     pub async fn send(&mut self, p: &Packet) -> Result<(), ServerError> {
         let mut bytes = BytesMut::with_capacity(p.frame_len());
-        p.to_bytes(&mut bytes)?;
+        p.to_bytes(&mut bytes);
         let mut frame = vec![0; bytes.remaining() + 100];
         let size = self.crypto.write_message(&bytes[..], &mut frame)?;
         self.stream

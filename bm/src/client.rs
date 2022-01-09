@@ -37,7 +37,7 @@ impl Client {
     }
 
     pub async fn send(&mut self, packet: &Packet) -> Result<()> {
-        packet.to_bytes(&mut self.send_bytes).unwrap();
+        packet.to_bytes(&mut self.send_bytes);
         self.stream.write_all_buf(&mut self.send_bytes).await?;
         Ok(())
     }
