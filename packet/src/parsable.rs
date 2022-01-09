@@ -74,11 +74,3 @@ pub(super) trait MqttSerialize {
     /// Serialize `Self` into `buf`
     fn serialize<T: BufMut>(&self, buf: &mut T);
 }
-
-pub(super) trait Parsable {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError>;
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError>
-    where
-        Self: Sized;
-    fn size(&self) -> usize;
-}
