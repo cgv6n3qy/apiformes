@@ -118,14 +118,14 @@ impl Parsable for Packet {
                     ((PacketType::PingReq as u8) << 4) | PacketType::PingReq.fixed_flags(),
                 );
                 b.serialize(buf);
-                p.serialize(buf)?;
+                p.serialize(buf);
             }
             Packet::PingRes(p) => {
                 let b = MqttOneBytesInt::new(
                     ((PacketType::PingRes as u8) << 4) | PacketType::PingRes.fixed_flags(),
                 );
                 b.serialize(buf);
-                p.serialize(buf)?;
+                p.serialize(buf);
             }
             Packet::Disconnect(p) => {
                 let b = MqttOneBytesInt::new(

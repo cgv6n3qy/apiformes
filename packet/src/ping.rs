@@ -20,20 +20,22 @@ impl Ping {
     }
 }
 
-impl Parsable for Ping {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for Ping {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         let length = MqttOneBytesInt::new(0);
         length.serialize(buf);
-        Ok(())
     }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+}
+
+impl MqttUncheckedDeserialize for Ping {
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttOneBytesInt::deserialize(buf)?.inner() as usize;
         match length {
             0 => Ok(Ping {}),
             _ => Err(DataParseError::BadPing),
         }
     }
-    fn size(&self) -> usize {
+    fn fixed_size() -> usize {
         1
     }
 }
