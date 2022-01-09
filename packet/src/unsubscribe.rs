@@ -63,7 +63,7 @@ impl Parsable for Unsubscribe {
         self.packet_identifier.serialize(buf);
         self.props.serialize(buf);
         for t in &self.topics {
-            t.serialize(buf)?;
+            t.serialize(buf);
         }
         Ok(())
     }

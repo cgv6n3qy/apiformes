@@ -172,7 +172,7 @@ impl Parsable for Subscribe {
         self.packet_identifier.serialize(buf);
         self.props.serialize(buf);
         for (k, v) in &self.topics {
-            k.serialize(buf)?;
+            k.serialize(buf);
             v.serialize(buf)?;
         }
         Ok(())

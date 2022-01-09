@@ -21,13 +21,8 @@ bitflags! {
     }
 }
 
-impl Parsable for PublishFlags {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        let flags = MqttOneBytesInt::new(self.bits());
-        flags.serialize(buf);
-        Ok(())
-    }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+impl MqttUncheckedDeserialize for PublishFlags {
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let raw_flags = MqttOneBytesInt::deserialize(buf)?;
         let flags =
             PublishFlags::from_bits(raw_flags.inner()).ok_or(DataParseError::BadConnectMessage)?;
@@ -35,7 +30,7 @@ impl Parsable for PublishFlags {
         let _: QoS = flags.try_into()?;
         Ok(flags)
     }
-    fn size(&self) -> usize {
+    fn fixed_size() -> usize {
         1
     }
 }
@@ -169,18 +164,20 @@ impl Publish {
     }
 }
 
-impl Parsable for Publish {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
+impl MqttSerialize for Publish {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
+        let length = MqttVariableBytesInt::new(self.partial_size() as u32)
+            .expect("Somehow you allocated a table that is larger than the allowed size");
         length.serialize(buf);
-        self.topic_name.serialize(buf)?;
+        self.topic_name.serialize(buf);
         if let Some(packet_identifier) = &self.packet_identifier {
             packet_identifier.serialize(buf);
         }
         self.props.serialize(buf);
         buf.put(self.payload.clone());
-        Ok(())
     }
+}
+impl MqttDeserialize for Publish {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let flags = PublishFlags::deserialize(buf)?;
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
@@ -211,7 +208,11 @@ impl Parsable for Publish {
             payload: buf.copy_to_bytes(buf.remaining()),
         })
     }
-
+}
+impl MqttSize for Publish {
+    fn min_size() -> usize {
+        MqttVariableBytesInt::min_size() + MqttTopic::min_size() + Properties::min_size()
+    }
     fn size(&self) -> usize {
         let size = self.partial_size();
         MqttVariableBytesInt::new(size as u32).unwrap().size() + size
@@ -238,7 +239,7 @@ mod tests {
         publish.set_qos(QoS::QoS1);
         publish.set_packet_identifier(123).unwrap();
         let mut b = BytesMut::new();
-        publish.serialize(&mut b).unwrap();
+        publish.serialize(&mut b);
         assert_eq!(b.remaining(), publish.size());
         assert_eq!(
             b,
@@ -253,7 +254,7 @@ mod tests {
         let mut new_b = Bytes::from(&[0b0000_0010][..]).chain(b.clone());
         let publish2 = Publish::deserialize(&mut new_b).unwrap();
         let mut b2 = BytesMut::new();
-        publish2.serialize(&mut b2).unwrap();
+        publish2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
 }

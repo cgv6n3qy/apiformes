@@ -56,11 +56,12 @@ impl MqttTopic {
     }
 }
 
-impl Parsable for MqttTopic {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for MqttTopic {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         self.0.serialize(buf);
-        Ok(())
     }
+}
+impl MqttDeserialize for MqttTopic {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let string = MqttUtf8String::deserialize(buf)?;
         if !is_valid_topic(string.inner()) {
@@ -68,6 +69,11 @@ impl Parsable for MqttTopic {
         } else {
             Ok(MqttTopic(string))
         }
+    }
+}
+impl MqttSize for MqttTopic {
+    fn min_size() -> usize {
+        MqttUtf8String::min_size()
     }
     fn size(&self) -> usize {
         self.0.size()
