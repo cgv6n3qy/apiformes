@@ -42,14 +42,15 @@ bitflags! {
     }
 }
 
-impl Parsable for SubscriptionOptions {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for SubscriptionOptions {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         let flags = MqttOneBytesInt::new(self.bits());
         flags.serialize(buf);
-        Ok(())
     }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let raw_flags = MqttOneBytesInt::deserialize(buf)?;
+}
+impl MqttUncheckedDeserialize for SubscriptionOptions {
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+        let raw_flags = MqttOneBytesInt::unchecked_deserialize(buf)?;
         let flags = SubscriptionOptions::from_bits(raw_flags.inner())
             .ok_or(DataParseError::BadConnectMessage)?;
         // sanity check on qos
@@ -58,7 +59,7 @@ impl Parsable for SubscriptionOptions {
         let _: RetainHandling = flags.try_into()?;
         Ok(flags)
     }
-    fn size(&self) -> usize {
+    fn fixed_size() -> usize {
         1
     }
 }
@@ -165,18 +166,20 @@ impl Subscribe {
     }
 }
 
-impl Parsable for Subscribe {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
+impl MqttSerialize for Subscribe {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
+        let length = MqttVariableBytesInt::new(self.partial_size() as u32)
+            .expect("Somehow you allocated a packet that is larger than the allowed size");
         length.serialize(buf);
         self.packet_identifier.serialize(buf);
         self.props.serialize(buf);
         for (k, v) in &self.topics {
             k.serialize(buf);
-            v.serialize(buf)?;
+            v.serialize(buf);
         }
-        Ok(())
     }
+}
+impl MqttDeserialize for Subscribe {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
         if buf.remaining() < length {
@@ -207,7 +210,15 @@ impl Parsable for Subscribe {
             })
         }
     }
-
+}
+impl MqttSize for Subscribe {
+    fn min_size() -> usize {
+        MqttVariableBytesInt::min_size()
+            + MqttTwoBytesInt::min_size()
+            + Properties::min_size()
+            + MqttTopic::min_size()
+            + SubscriptionOptions::min_size() // at least one subscription
+    }
     fn size(&self) -> usize {
         let size = self.partial_size();
         MqttVariableBytesInt::new(size as u32).unwrap().size() + size
@@ -247,7 +258,7 @@ mod test {
             )
             .unwrap();
         let mut b = BytesMut::new();
-        subscribe.serialize(&mut b).unwrap();
+        subscribe.serialize(&mut b);
         assert_eq!(b.remaining(), subscribe.size());
         assert_eq!(
             b,
@@ -261,7 +272,7 @@ mod test {
         );
         let subscribe2 = Subscribe::deserialize(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        subscribe2.serialize(&mut b2).unwrap();
+        subscribe2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
 }
