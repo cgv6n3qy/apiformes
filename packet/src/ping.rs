@@ -29,7 +29,7 @@ impl MqttSerialize for Ping {
 
 impl MqttUncheckedDeserialize for Ping {
     fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let length = MqttOneBytesInt::deserialize(buf)?.inner() as usize;
+        let length = MqttOneBytesInt::unchecked_deserialize(buf)?.inner() as usize;
         match length {
             0 => Ok(Ping {}),
             _ => Err(DataParseError::BadPing),
