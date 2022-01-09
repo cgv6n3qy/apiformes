@@ -1,4 +1,4 @@
-use super::{data::MqttVariableBytesInt, error::DataParseError, packet::Packet, parsable::*};
+use super::{data::MqttOneBytesInt, error::DataParseError, packet::Packet, parsable::*};
 use bytes::{Buf, BufMut};
 
 #[derive(Clone)]
@@ -22,12 +22,12 @@ impl Ping {
 
 impl Parsable for Ping {
     fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        let length = MqttVariableBytesInt::new(0)?;
+        let length = MqttOneBytesInt::new(0);
         length.serialize(buf);
         Ok(())
     }
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
+        let length = MqttOneBytesInt::deserialize(buf)?.inner() as usize;
         match length {
             0 => Ok(Ping {}),
             _ => Err(DataParseError::BadPing),
