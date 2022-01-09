@@ -56,18 +56,19 @@ impl UnsubAck {
     }
 }
 
-impl Parsable for UnsubAck {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
+impl MqttSerialize for UnsubAck {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
+        let length = MqttVariableBytesInt::new(self.partial_size() as u32)
+            .expect("Somehow you allocated a packet that is larger than the allowed size");
         length.serialize(buf);
         self.packet_identifier.serialize(buf);
         self.props.serialize(buf);
         for r in &self.reason_codes {
             r.serialize(buf);
         }
-        Ok(())
     }
-
+}
+impl MqttDeserialize for UnsubAck {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
         if buf.remaining() < length {
@@ -97,7 +98,15 @@ impl Parsable for UnsubAck {
             })
         }
     }
+}
 
+impl MqttSize for UnsubAck {
+    fn min_size() -> usize {
+        MqttVariableBytesInt::min_size()
+            + MqttTwoBytesInt::min_size()
+            + Properties::min_size()
+            + UnsubAckReasonCode::min_size() // at least one unsubscribe
+    }
     fn size(&self) -> usize {
         let size = self.partial_size();
         MqttVariableBytesInt::new(size as u32).unwrap().size() + size
@@ -114,7 +123,7 @@ mod test {
         unsuback.add_reason_code(UnsubAckReasonCode::UnspecifiedError);
         unsuback.add_reason_code(UnsubAckReasonCode::UnspecifiedError);
         let mut b = BytesMut::new();
-        unsuback.serialize(&mut b).unwrap();
+        unsuback.serialize(&mut b);
         assert_eq!(b.remaining(), unsuback.size());
         assert_eq!(
             b,
@@ -128,7 +137,7 @@ mod test {
         );
         let unsuback2 = UnsubAck::deserialize(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        unsuback2.serialize(&mut b2).unwrap();
+        unsuback2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
 }

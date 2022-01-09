@@ -111,7 +111,7 @@ impl Parsable for Packet {
                     ((PacketType::UnsubAck as u8) << 4) | PacketType::UnsubAck.fixed_flags(),
                 );
                 b.serialize(buf);
-                p.serialize(buf)?;
+                p.serialize(buf);
             }
             Packet::PingReq(p) => {
                 let b = MqttOneBytesInt::new(
