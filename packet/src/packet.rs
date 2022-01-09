@@ -188,8 +188,8 @@ impl MqttDeserialize for Packet {
             PacketType::SubAck => Ok(Packet::SubAck(SubAck::deserialize(buf)?)),
             PacketType::Unsubscribe => Ok(Packet::Unsubscribe(Unsubscribe::deserialize(buf)?)),
             PacketType::UnsubAck => Ok(Packet::UnsubAck(UnsubAck::deserialize(buf)?)),
-            PacketType::PingReq => Ok(Packet::PingReq(Ping::deserialize(buf)?)),
-            PacketType::PingRes => Ok(Packet::PingRes(Ping::deserialize(buf)?)),
+            PacketType::PingReq => Ok(Packet::PingReq(Ping::unchecked_deserialize(buf)?)),
+            PacketType::PingRes => Ok(Packet::PingRes(Ping::unchecked_deserialize(buf)?)),
             PacketType::Disconnect => Ok(Packet::Disconnect(Disconnect::deserialize(buf)?)),
             PacketType::Auth => Ok(Packet::Auth(Auth::deserialize(buf)?)),
         }
