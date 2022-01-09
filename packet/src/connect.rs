@@ -123,13 +123,14 @@ impl Will {
         Ok(())
     }
 }
-impl Parsable for Will {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for Will {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         self.props.serialize(buf);
         self.topic.serialize(buf);
         self.payload.serialize(buf);
-        Ok(())
     }
+}
+impl MqttDeserialize for Will {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let props = Properties::deserialize(buf)?;
         if props.is_valid_for(PropOwner::WILL) {
@@ -141,6 +142,11 @@ impl Parsable for Will {
         } else {
             Err(DataParseError::BadProperty)
         }
+    }
+}
+impl MqttSize for Will {
+    fn min_size() -> usize {
+        Properties::min_size() + MqttUtf8String::min_size() + MqttBinaryData::min_size()
     }
     fn size(&self) -> usize {
         self.props.size() + self.topic.size() + self.payload.size()
@@ -286,7 +292,7 @@ impl Parsable for Connect {
         self.clientid.serialize(buf);
 
         if let Some(will) = self.will_info.as_ref() {
-            will.serialize(buf)?;
+            will.serialize(buf);
         }
 
         if let Some(username) = self.username.as_ref() {
