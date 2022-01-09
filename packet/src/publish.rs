@@ -23,7 +23,7 @@ bitflags! {
 
 impl MqttUncheckedDeserialize for PublishFlags {
     fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let raw_flags = MqttOneBytesInt::deserialize(buf)?;
+        let raw_flags = MqttOneBytesInt::unchecked_deserialize(buf)?;
         let flags =
             PublishFlags::from_bits(raw_flags.inner()).ok_or(DataParseError::BadConnectMessage)?;
         // sanity check on qos
@@ -179,8 +179,12 @@ impl MqttSerialize for Publish {
 }
 impl MqttDeserialize for Publish {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let flags = PublishFlags::deserialize(buf)?;
+        // this byte is enjected by `Packet` so no need to check if it there
+        let flags = PublishFlags::unchecked_deserialize(buf)?;
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
+        if length < Publish::min_size() - MqttVariableBytesInt::min_size() {
+            return Err(DataParseError::BadPublishMessage);
+        }
         if buf.remaining() < length {
             return Err(DataParseError::InsufficientBuffer {
                 needed: length,
