@@ -65,6 +65,9 @@ impl MqttSerialize for PubRec {
 impl MqttDeserialize for PubRec {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
+        if length < PubRec::min_size() - MqttVariableBytesInt::min_size() {
+            return Err(DataParseError::BadPubRecMessage);
+        }
         if buf.remaining() < length {
             return Err(DataParseError::InsufficientBuffer {
                 needed: length,
@@ -72,8 +75,8 @@ impl MqttDeserialize for PubRec {
             });
         }
         let mut buf = buf.take(length);
-        let packet_identifier = MqttTwoBytesInt::deserialize(&mut buf)?;
-        let reason_code = PubRecReasonCode::deserialize(&mut buf)?;
+        let packet_identifier = MqttTwoBytesInt::unchecked_deserialize(&mut buf)?;
+        let reason_code = PubRecReasonCode::unchecked_deserialize(&mut buf)?;
         let props = Properties::deserialize(&mut buf)?;
         if !props.is_valid_for(PropOwner::PUBREC) {
             return Err(DataParseError::BadProperty);

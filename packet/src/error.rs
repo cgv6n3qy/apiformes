@@ -13,6 +13,7 @@ pub enum DataParseError {
     BadPubAckMessage,
     BadPubCompMessage,
     BadPublishMessage,
+    BadPubRecMessage,
     UnsupportedMqttVersion,
     BadQoS,
     BadTopic,
