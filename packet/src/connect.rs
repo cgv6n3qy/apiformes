@@ -38,7 +38,7 @@ impl MqttSerialize for ConnectFlags {
 }
 impl MqttUncheckedDeserialize for ConnectFlags {
     fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
-        let raw_flags = MqttOneBytesInt::deserialize(buf)?;
+        let raw_flags = MqttOneBytesInt::unchecked_deserialize(buf)?;
         let flags =
             ConnectFlags::from_bits(raw_flags.inner()).ok_or(DataParseError::BadConnectMessage)?;
         // sanity check on qos
@@ -310,6 +310,9 @@ impl MqttSerialize for Connect {
 impl MqttDeserialize for Connect {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
+        if length < Connect::min_size() - MqttVariableBytesInt::min_size() {
+            return Err(DataParseError::BadConnectMessage);
+        }
         if buf.remaining() < length {
             return Err(DataParseError::InsufficientBuffer {
                 needed: length,
@@ -321,12 +324,12 @@ impl MqttDeserialize for Connect {
         if protocol_name.inner().as_ref() != "MQTT" {
             return Err(DataParseError::BadConnectMessage);
         }
-        let protocol_version = MqttOneBytesInt::deserialize(&mut buf)?;
+        let protocol_version = MqttOneBytesInt::unchecked_deserialize(&mut buf)?;
         if protocol_version.inner() != 5 {
             return Err(DataParseError::UnsupportedMqttVersion);
         }
-        let flags = ConnectFlags::deserialize(&mut buf)?;
-        let keep_alive = MqttTwoBytesInt::deserialize(&mut buf)?;
+        let flags = ConnectFlags::unchecked_deserialize(&mut buf)?;
+        let keep_alive = MqttTwoBytesInt::unchecked_deserialize(&mut buf)?;
         let props = Properties::deserialize(&mut buf)?;
         if !props.is_valid_for(PropOwner::CONNECT) {
             return Err(DataParseError::BadProperty);
