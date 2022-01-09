@@ -62,7 +62,7 @@ impl Parsable for Packet {
                     ((PacketType::PubAck as u8) << 4) | PacketType::PubAck.fixed_flags(),
                 );
                 b.serialize(buf);
-                p.serialize(buf)?;
+                p.serialize(buf);
             }
             Packet::PubRec(p) => {
                 let b = MqttOneBytesInt::new(
