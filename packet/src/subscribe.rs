@@ -182,6 +182,9 @@ impl MqttSerialize for Subscribe {
 impl MqttDeserialize for Subscribe {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
+        if length < Subscribe::min_size() - MqttVariableBytesInt::min_size() {
+            return Err(DataParseError::BadSubscribeMessage);
+        }
         if buf.remaining() < length {
             return Err(DataParseError::InsufficientBuffer {
                 needed: length,
@@ -189,7 +192,7 @@ impl MqttDeserialize for Subscribe {
             });
         }
         let mut buf = buf.take(length);
-        let packet_identifier = MqttTwoBytesInt::deserialize(&mut buf)?;
+        let packet_identifier = MqttTwoBytesInt::unchecked_deserialize(&mut buf)?;
         let props = Properties::deserialize(&mut buf)?;
         if !props.is_valid_for(PropOwner::SUBSCRIBE) {
             return Err(DataParseError::BadProperty);
@@ -197,6 +200,8 @@ impl MqttDeserialize for Subscribe {
         let mut topics = Vec::new();
         while buf.remaining() != 0 {
             let topic = MqttTopic::deserialize(&mut buf)?;
+            // we cannot do unchecked deserialize here because it is proceeded by deserialization
+            // of variable length field
             let options = SubscriptionOptions::deserialize(&mut buf)?;
             topics.push((topic, options));
         }
