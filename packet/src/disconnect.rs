@@ -55,6 +55,9 @@ impl MqttSerialize for Disconnect {
 impl MqttDeserialize for Disconnect {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
+        if length < Disconnect::min_size() - MqttVariableBytesInt::min_size() {
+            return Err(DataParseError::BadDisconnectMessage);
+        }
         if buf.remaining() < length {
             return Err(DataParseError::InsufficientBuffer {
                 needed: length,
@@ -62,7 +65,7 @@ impl MqttDeserialize for Disconnect {
             });
         }
         let mut buf = buf.take(length);
-        let reason_code = DisconnectReasonCode::deserialize(&mut buf)?;
+        let reason_code = DisconnectReasonCode::unchecked_deserialize(&mut buf)?;
         let props = Properties::deserialize(&mut buf)?;
         if !props.is_valid_for(PropOwner::DISCONNECT) {
             return Err(DataParseError::BadProperty);
