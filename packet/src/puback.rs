@@ -65,6 +65,9 @@ impl MqttSerialize for PubAck {
 impl MqttDeserialize for PubAck {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
+        if length < PubAck::min_size() - MqttVariableBytesInt::min_size() {
+            return Err(DataParseError::BadConnAckMessage);
+        }
         if buf.remaining() < length {
             return Err(DataParseError::InsufficientBuffer {
                 needed: length,
@@ -72,8 +75,8 @@ impl MqttDeserialize for PubAck {
             });
         }
         let mut buf = buf.take(length);
-        let packet_identifier = MqttTwoBytesInt::deserialize(&mut buf)?;
-        let reason_code = PubAckReasonCode::deserialize(&mut buf)?;
+        let packet_identifier = MqttTwoBytesInt::unchecked_deserialize(&mut buf)?;
+        let reason_code = PubAckReasonCode::unchecked_deserialize(&mut buf)?;
         let props = Properties::deserialize(&mut buf)?;
         if !props.is_valid_for(PropOwner::PUBACK) {
             return Err(DataParseError::BadProperty);
