@@ -71,6 +71,9 @@ impl MqttSerialize for SubAck {
 impl MqttDeserialize for SubAck {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
+        if length < SubAck::min_size() - MqttVariableBytesInt::min_size() {
+            return Err(DataParseError::BadSubAckMessage);
+        }
         if buf.remaining() < length {
             return Err(DataParseError::InsufficientBuffer {
                 needed: length,
@@ -78,14 +81,14 @@ impl MqttDeserialize for SubAck {
             });
         }
         let mut buf = buf.take(length);
-        let packet_identifier = MqttTwoBytesInt::deserialize(&mut buf)?;
+        let packet_identifier = MqttTwoBytesInt::unchecked_deserialize(&mut buf)?;
         let props = Properties::deserialize(&mut buf)?;
         if !props.is_valid_for(PropOwner::SUBACK) {
             return Err(DataParseError::BadProperty);
         }
         let mut reason_codes = Vec::new();
         while buf.remaining() > 0 {
-            let r = SubAckReasonCode::deserialize(&mut buf)?;
+            let r = SubAckReasonCode::unchecked_deserialize(&mut buf)?;
             reason_codes.push(r);
         }
         if reason_codes.is_empty() {
