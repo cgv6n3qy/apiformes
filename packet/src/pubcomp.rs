@@ -66,6 +66,9 @@ impl MqttSerialize for PubComp {
 impl MqttDeserialize for PubComp {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
+        if length < PubComp::min_size() - MqttVariableBytesInt::min_size() {
+            return Err(DataParseError::BadPubCompMessage);
+        }
         if buf.remaining() < length {
             return Err(DataParseError::InsufficientBuffer {
                 needed: length,
@@ -73,8 +76,8 @@ impl MqttDeserialize for PubComp {
             });
         }
         let mut buf = buf.take(length);
-        let packet_identifier = MqttTwoBytesInt::deserialize(&mut buf)?;
-        let reason_code = PubCompReasonCode::deserialize(&mut buf)?;
+        let packet_identifier = MqttTwoBytesInt::unchecked_deserialize(&mut buf)?;
+        let reason_code = PubCompReasonCode::unchecked_deserialize(&mut buf)?;
         let props = Properties::deserialize(&mut buf)?;
         if !props.is_valid_for(PropOwner::PUBCOMP) {
             return Err(DataParseError::BadProperty);
