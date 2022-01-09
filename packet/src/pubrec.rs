@@ -52,15 +52,17 @@ impl PubRec {
     }
 }
 
-impl Parsable for PubRec {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
+impl MqttSerialize for PubRec {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
+        let length = MqttVariableBytesInt::new(self.partial_size() as u32)
+            .expect("Somehow you allocated a table that is larger than the allowed size");
         length.serialize(buf);
         self.packet_identifier.serialize(buf);
         self.reason_code.serialize(buf);
         self.props.serialize(buf);
-        Ok(())
     }
+}
+impl MqttDeserialize for PubRec {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
         if buf.remaining() < length {
@@ -82,7 +84,14 @@ impl Parsable for PubRec {
             props,
         })
     }
-
+}
+impl MqttSize for PubRec {
+    fn min_size() -> usize {
+        MqttVariableBytesInt::min_size()
+            + MqttTwoBytesInt::min_size()
+            + PubRecReasonCode::min_size()
+            + Properties::min_size()
+    }
     fn size(&self) -> usize {
         let size = self.partial_size();
         MqttVariableBytesInt::new(size as u32).unwrap().size() + size
@@ -98,7 +107,7 @@ mod test {
         let mut pubrec = PubRec::new(123);
         pubrec.set_reason_code(PubRecReasonCode::UnspecifiedError);
         let mut b = BytesMut::new();
-        pubrec.serialize(&mut b).unwrap();
+        pubrec.serialize(&mut b);
         assert_eq!(b.remaining(), pubrec.size());
         assert_eq!(
             b,
@@ -111,7 +120,7 @@ mod test {
         );
         let pubrec2 = PubRec::deserialize(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        pubrec2.serialize(&mut b2).unwrap();
+        pubrec2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
 }
