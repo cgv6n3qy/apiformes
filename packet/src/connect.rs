@@ -30,13 +30,14 @@ bitflags! {
     }
 }
 
-impl Parsable for ConnectFlags {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
+impl MqttSerialize for ConnectFlags {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
         let flags = MqttOneBytesInt::new(self.bits());
         flags.serialize(buf);
-        Ok(())
     }
-    fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
+}
+impl MqttUncheckedDeserialize for ConnectFlags {
+    fn unchecked_deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let raw_flags = MqttOneBytesInt::deserialize(buf)?;
         let flags =
             ConnectFlags::from_bits(raw_flags.inner()).ok_or(DataParseError::BadConnectMessage)?;
@@ -51,7 +52,7 @@ impl Parsable for ConnectFlags {
             Ok(flags)
         }
     }
-    fn size(&self) -> usize {
+    fn fixed_size() -> usize {
         1
     }
 }
@@ -271,19 +272,21 @@ impl Connect {
     }
 }
 
-impl Parsable for Connect {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
+impl MqttSerialize for Connect {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
+        let length = MqttVariableBytesInt::new(self.partial_size() as u32)
+            .expect("Somehow you allocated a packet that is larger than the allowed size");
         length.serialize(buf);
 
         //TODO lazy static to avoid reallocating
-        let protocol_name = MqttUtf8String::new(Arc::from("MQTT"))?;
+        let protocol_name = MqttUtf8String::new(Arc::from("MQTT"))
+            .expect("Failed to convert valid hardcoded string to MqttUtf8String");
         protocol_name.serialize(buf);
 
         let protocol_version = MqttOneBytesInt::new(5);
         protocol_version.serialize(buf);
 
-        self.flags.serialize(buf)?;
+        self.flags.serialize(buf);
 
         self.keep_alive.serialize(buf);
 
@@ -302,8 +305,9 @@ impl Parsable for Connect {
         if let Some(password) = self.password.as_ref() {
             password.serialize(buf);
         }
-        Ok(())
     }
+}
+impl MqttDeserialize for Connect {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
         if buf.remaining() < length {
@@ -358,6 +362,18 @@ impl Parsable for Connect {
             Err(DataParseError::BadConnectMessage)
         }
     }
+}
+impl MqttSize for Connect {
+    fn min_size() -> usize {
+        //TODO lazy static mqtt part
+        MqttVariableBytesInt::min_size() // length
+            + MqttUtf8String::new(Arc::from("MQTT")).unwrap().size() // signature
+            + MqttOneBytesInt::min_size() // protocol_version
+            + ConnectFlags::min_size()
+            + MqttTwoBytesInt::min_size() // keep_alive
+            + Properties::min_size()
+            + MqttUtf8String::min_size() // clientid
+    }
     fn size(&self) -> usize {
         let size = self.partial_size();
         MqttVariableBytesInt::new(size as u32).unwrap().size() + size
@@ -380,7 +396,7 @@ mod test {
             .add_prop(Property::SessionExpiryInterval, MqttPropValue::new_u32(10))
             .unwrap();
         let mut b = BytesMut::new();
-        connect.serialize(&mut b).unwrap();
+        connect.serialize(&mut b);
         assert_eq!(b.remaining(), connect.size());
         assert_eq!(
             b,
@@ -400,7 +416,7 @@ mod test {
         );
         let connect2 = Connect::deserialize(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        connect2.serialize(&mut b2).unwrap();
+        connect2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
     #[test]

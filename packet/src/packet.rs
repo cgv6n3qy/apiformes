@@ -43,7 +43,7 @@ impl Parsable for Packet {
                     ((PacketType::Connect as u8) << 4) | PacketType::Connect.fixed_flags(),
                 );
                 b.serialize(buf);
-                p.serialize(buf)?;
+                p.serialize(buf);
             }
             Packet::ConnAck(p) => {
                 let b = MqttOneBytesInt::new(
