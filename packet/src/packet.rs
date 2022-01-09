@@ -132,7 +132,7 @@ impl Parsable for Packet {
                     ((PacketType::Disconnect as u8) << 4) | PacketType::Disconnect.fixed_flags(),
                 );
                 b.serialize(buf);
-                p.serialize(buf)?;
+                p.serialize(buf);
             }
             Packet::Auth(p) => {
                 let b = MqttOneBytesInt::new(

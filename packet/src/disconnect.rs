@@ -43,14 +43,16 @@ impl Disconnect {
     }
 }
 
-impl Parsable for Disconnect {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
+impl MqttSerialize for Disconnect {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
+        let length = MqttVariableBytesInt::new(self.partial_size() as u32)
+            .expect("Somehow you allocated a packet that is larger than the allowed size");
         length.serialize(buf);
         self.reason_code.serialize(buf);
         self.props.serialize(buf);
-        Ok(())
     }
+}
+impl MqttDeserialize for Disconnect {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
         if buf.remaining() < length {
@@ -67,7 +69,11 @@ impl Parsable for Disconnect {
         }
         Ok(Disconnect { reason_code, props })
     }
-
+}
+impl MqttSize for Disconnect {
+    fn min_size() -> usize {
+        MqttVariableBytesInt::min_size() + DisconnectReasonCode::min_size() + Properties::min_size()
+    }
     fn size(&self) -> usize {
         let size = self.partial_size();
         MqttVariableBytesInt::new(size as u32).unwrap().size() + size
@@ -82,7 +88,7 @@ mod test {
     fn test_disconnect() {
         let disconnect = Disconnect::new(DisconnectReasonCode::UnspecifiedError);
         let mut b = BytesMut::new();
-        disconnect.serialize(&mut b).unwrap();
+        disconnect.serialize(&mut b);
         assert_eq!(b.remaining(), disconnect.size());
         assert_eq!(
             b,
@@ -94,7 +100,7 @@ mod test {
         );
         let disconnect2 = Disconnect::deserialize(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        disconnect2.serialize(&mut b2).unwrap();
+        disconnect2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
 }
