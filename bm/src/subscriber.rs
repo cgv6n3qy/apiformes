@@ -52,8 +52,8 @@ impl Subscriber {
             //  |---------------------------|---------------------------|
             //  |    t(stored in payload)   |      we need this part    |
             let now = Instant::now();
-            let t_secs = (t / 1000000) as u64;
-            let t_nanos = (t % 1000000 * 1000) as u32;
+            let t_secs = (t / 1000000000) as u64;
+            let t_nanos = (t % 1000000000) as u32;
             let t = Duration::new(t_secs, t_nanos);
             let trip_time = now.duration_since(self.time_reference).saturating_sub(t);
             self.trips_time.push(trip_time);
