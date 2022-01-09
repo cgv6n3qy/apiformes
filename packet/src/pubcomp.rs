@@ -53,15 +53,17 @@ impl PubComp {
     }
 }
 
-impl Parsable for PubComp {
-    fn serialize<T: BufMut>(&self, buf: &mut T) -> Result<(), DataParseError> {
-        let length = MqttVariableBytesInt::new(self.partial_size() as u32)?;
+impl MqttSerialize for PubComp {
+    fn serialize<T: BufMut>(&self, buf: &mut T) {
+        let length = MqttVariableBytesInt::new(self.partial_size() as u32)
+            .expect("Somehow you allocated a packet that is larger than the allowed size");
         length.serialize(buf);
         self.packet_identifier.serialize(buf);
         self.reason_code.serialize(buf);
         self.props.serialize(buf);
-        Ok(())
     }
+}
+impl MqttDeserialize for PubComp {
     fn deserialize<T: Buf>(buf: &mut T) -> Result<Self, DataParseError> {
         let length = MqttVariableBytesInt::deserialize(buf)?.inner() as usize;
         if buf.remaining() < length {
@@ -83,7 +85,14 @@ impl Parsable for PubComp {
             props,
         })
     }
-
+}
+impl MqttSize for PubComp {
+    fn min_size() -> usize {
+        MqttVariableBytesInt::min_size()
+            + MqttTwoBytesInt::min_size()
+            + PubCompReasonCode::min_size()
+            + Properties::min_size()
+    }
     fn size(&self) -> usize {
         let size = self.partial_size();
         MqttVariableBytesInt::new(size as u32).unwrap().size() + size
@@ -99,7 +108,7 @@ mod test {
         let mut pubcomp = PubComp::new(123);
         pubcomp.set_reason_code(PubCompReasonCode::PacketIdentifierNotFound);
         let mut b = BytesMut::new();
-        pubcomp.serialize(&mut b).unwrap();
+        pubcomp.serialize(&mut b);
         assert_eq!(b.remaining(), pubcomp.size());
         assert_eq!(
             b,
@@ -112,7 +121,7 @@ mod test {
         );
         let pubcomp2 = PubComp::deserialize(&mut b.clone()).unwrap();
         let mut b2 = BytesMut::new();
-        pubcomp2.serialize(&mut b2).unwrap();
+        pubcomp2.serialize(&mut b2);
         assert_eq!(b, b2);
     }
 }
