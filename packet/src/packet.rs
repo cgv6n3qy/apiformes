@@ -97,7 +97,7 @@ impl Parsable for Packet {
                     ((PacketType::SubAck as u8) << 4) | PacketType::SubAck.fixed_flags(),
                 );
                 b.serialize(buf);
-                p.serialize(buf)?;
+                p.serialize(buf);
             }
             Packet::Unsubscribe(p) => {
                 let b = MqttOneBytesInt::new(
